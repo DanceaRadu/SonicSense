@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>									
+<MicArray name="array_16">									
+	<pos Name="U1"   x="-0.111"  y=" 0.111"  z="0"/>
+	<pos Name="U2"   x="-0.111"  y=" 0.370"  z="0"/>
+	<pos Name="U3"   x="-0.111"  y="-0.370"  z="0"/>
+	<pos Name="U4"   x="-0.111"  y="-0.111"  z="0"/>
+	<pos Name="U5"   x="-0.370"  y=" 0.111"  z="0"/>
+	<pos Name="U6"   x="-0.370"  y=" 0.370"  z="0"/>
+	<pos Name="U7"   x="-0.370"  y="-0.370"  z="0"/>
+	<pos Name="U8"   x="-0.370"  y="-0.111"  z="0"/>
+	<pos Name="U10"  x=" 0.370"  y=" 0.111"  z="0"/>
+	<pos Name="U11"  x=" 0.370"  y=" 0.370"  z="0"/>
+	<pos Name="U12"  x=" 0.370"  y="-0.370"  z="0"/>
+	<pos Name="U13"  x=" 0.370"  y="-0.111"  z="0"/>
+	<pos Name="U14"  x=" 0.111"  y=" 0.111"  z="0"/>
+	<pos Name="U15"  x=" 0.111"  y=" 0.370"  z="0"/>
+	<pos Name="U16"  x=" 0.111"  y="-0.370"  z="0"/>
+	<pos Name="U17"  x=" 0.111"  y="-0.111"  z="0"/>
+</MicArray>	
