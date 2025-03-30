@@ -7,7 +7,22 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 
 mic_array =  MicGeom(file='resources/array_16.xml')
-mic_grid = RectGrid(x_min=-0.25, x_max=0.25, y_min=-0.25, y_max=0.25, z=0.3, increment=0.01)
+mic_grid = RectGrid(x_min=-0.5, x_max=0.5, y_min=-0.5, y_max=0.5, z=0.5, increment=0.02)
+
+# # Extract mic positions
+# x, y, z = mic_array.mpos  # mg.mpos has shape (3, N)
+
+# # 2D plot (XY-plane)
+# plt.figure(figsize=(6, 6))
+# plt.scatter(x, y, marker='o', color='blue')
+# for i in range(len(x)):
+#     plt.text(x[i], y[i], str(i+1), fontsize=9, ha='right')
+# plt.xlabel('X [m]')
+# plt.ylabel('Y [m]')
+# plt.title('Microphone Array Geometry (XY Plane)')
+# plt.axis('equal')
+# plt.grid(True)
+# plt.show()
 
 # Manually create x and y axis based on grid config
 x_vals = np.arange(mic_grid.x_min, mic_grid.x_max + mic_grid.increment, mic_grid.increment)
@@ -39,7 +54,7 @@ def update(frame):
         ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=False)
         st = SteeringVector(grid=mic_grid, mics=mic_array)
         bf = BeamformerBase(freq_data=ps, steer=st, cached=False)
-        bf_map = bf.synthetic(500, 3)
+        bf_map = bf.synthetic(1000, 3)
         bf_map = bf_map.reshape(len(y_vals), len(x_vals))
    
         img.set_data(bf_map)
