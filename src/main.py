@@ -1,61 +1,52 @@
 from acoular import (
     SoundDeviceSamplesGenerator, MicGeom, RectGrid,
-    BeamformerBase, PowerSpectra, SteeringVector, TimeSamples
+    BeamformerBase, PowerSpectra, SteeringVector, RFFT, FFTSpectra
 )
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
 
-mch_generator = SoundDeviceSamplesGenerator(
-    device=0,
-    num_channels=16,
-    sample_freq=48000,
-    precision='int16'
-)
-
 mic_array =  MicGeom(file='resources/array_16.xml')
-mic_grid = RectGrid(x_min=-0.2, x_max=0.2, y_min=-0.2, y_max=0.2, z=0.3, increment=0.01)
-ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=True)
-st = SteeringVector(grid=mic_grid, mics=mic_array)
-bf = BeamformerBase(freq_data=ps, steer=st)
+mic_grid = RectGrid(x_min=-0.25, x_max=0.25, y_min=-0.25, y_max=0.25, z=0.3, increment=0.01)
 
-result = bf.synthetic(4125)  # Initialize the beamformer
-print(result)
+# Manually create x and y axis based on grid config
+x_vals = np.arange(mic_grid.x_min, mic_grid.x_max + mic_grid.increment, mic_grid.increment)
+y_vals = np.arange(mic_grid.y_min, mic_grid.y_max + mic_grid.increment, mic_grid.increment)
+x_mesh, y_mesh = np.meshgrid(x_vals, y_vals)
 
-# # Grid info
-# nx, ny = mic_grid.shape
-# x_vals = np.linspace(mic_grid.x_min, mic_grid.x_max, nx)
-# y_vals = np.linspace(mic_grid.y_min, mic_grid.y_max, ny)
+# Set up live plot
+fig, ax = plt.subplots()
+initial_data = np.zeros_like(x_mesh)
+img = ax.imshow(initial_data, extent=[x_vals[0], x_vals[-1], y_vals[0], y_vals[-1]],
+                origin='lower', vmin=0, vmax=1, aspect='auto')
+cbar = plt.colorbar(img, ax=ax)
+cbar.set_label("Beamformer Output")
+ax.set_title("Live Sound Source Localization")
+ax.set_xlabel("X [m]")
+ax.set_ylabel("Y [m]")
 
-# # Set up the plot
-# fig, ax = plt.subplots()
-# im = ax.imshow(np.zeros((ny, nx)), extent=(mic_grid.x_min, mic_grid.x_max, mic_grid.y_min, mic_grid.y_max),
-#                origin='lower', cmap='inferno')
-# ax.set_title("Real-time Sound Source Localization")
-# ax.set_xlabel("X [m]")
-# ax.set_ylabel("Y [m]")
-# fig.colorbar(im, ax=ax)
+# Update function for animation
+def update(frame):
+    global prev_map
+    try:
+        mch_generator = SoundDeviceSamplesGenerator(
+            device=0,
+            num_channels=16,
+            sample_freq=48000,
+            precision='int16',
+            numsamples=1024
+        )
+        ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=False)
+        st = SteeringVector(grid=mic_grid, mics=mic_array)
+        bf = BeamformerBase(freq_data=ps, steer=st, cached=False)
+        bf_map = bf.synthetic(500, 3)
+        bf_map = bf_map.reshape(len(y_vals), len(x_vals))
+   
+        img.set_data(bf_map)
+        img.set_clim(vmin=np.min(bf_map), vmax=np.max(bf_map))
+    except Exception as e:
+        print(f"Update error: {e}")
 
-# # Beamforming data generator
-# def data_gen():
-#     while True:
-#         try:
-#             bf_map = bf.synthetic(4125)
-#             yield bf_map.reshape(ny, nx)
-#         except Exception as e:
-#             print("Beamforming error:", e)
-#             yield np.zeros((ny, nx))  # Keep GUI alive
-
-# data_stream = data_gen()
-
-# # Update function
-# def update(frame):
-#     print(f"Frame: {frame}")
-#     bf_reshaped = next(data_stream)
-#     im.set_data(bf_reshaped)
-#     im.set_clim(vmin=np.min(bf_reshaped), vmax=np.max(bf_reshaped))
-#     return [im]
-
-# # Start animation
-# ani = FuncAnimation(fig, update, interval=200, blit=True, save_count=200)
-# plt.show()
+# Run animation
+ani = FuncAnimation(fig, update, interval=20, blit=False, cache_frame_data=False, repeat=False)
+plt.show()
