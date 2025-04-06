@@ -1,3 +1,5 @@
+from beamformer_map import BeamformerMap
+from utils.helper_service import HelperService
 import subprocess
 import cv2
 import time
@@ -5,7 +7,6 @@ import os
 import signal
 import tkinter as tk
 from PIL import Image, ImageTk
-from beamformer_map import BeamformerMap
 import numpy as np
 from matplotlib import cm
 
@@ -13,6 +14,7 @@ class PiCamApp:
     def __init__(self, root):
         self.root = root
         self.root.title("SonicSense")
+        HelperService.ensure_v4l2loopback_device()
 
         # Create GUI components
         self.video_label = tk.Label(root)
@@ -22,7 +24,7 @@ class PiCamApp:
         self.pipeline_cmd = (
             "libcamera-vid -t 0 --width 1536 --height 864 --framerate 30 "
             "--codec yuv420 --nopreview -o - | "
-            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 640x480 -i - "
+            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 1536x864 -i - "
             "-f v4l2 /dev/video10"
         )
 
@@ -41,11 +43,12 @@ class PiCamApp:
             self.cleanup()
             exit()
 
-        self.beamformer = BeamformerMap()
+        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.3, increment=0.02)
         self.frame_count = 0
         self.bf_map = None
 
         self.update_frame()
+        self.root.bind('<Alt-F4>', self.on_close)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_frame(self):

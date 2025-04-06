@@ -1,20 +1,24 @@
 from acoular import (
     SoundDeviceSamplesGenerator, MicGeom, RectGrid,
-    BeamformerBase, PowerSpectra, SteeringVector, RFFT, FFTSpectra
+    BeamformerBase, PowerSpectra, SteeringVector, RFFT, FFTSpectra, BeamformerCapon
 )
+from utils.helper_service import HelperService
 import numpy as np
 
 class BeamformerMap:
-    def __init__(self, mic_file='resources/array_16.xml', 
-                 freq=1000, increment=0.02,
-                 x_min=-0.5, x_max=0.5, y_min=-0.5, y_max=0.5,
-                 z=0.5, bandwidth=3):
+    def __init__(self, horizonatal_fov, vertical_fov, z,
+                 mic_file='resources/array_16.xml', 
+                 freq=1000, increment=0.01, bandwidth=3):
         
         self.freq = freq
         self.bandwidth = bandwidth
 
         self.mic_array = MicGeom(file=mic_file)
-        self.mic_grid = RectGrid(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z=z, increment=increment)
+        self.mic_grid = HelperService.getRectGridBasedOnCameraFOV(
+            horizontal_fov=horizonatal_fov, vertical_fov=vertical_fov,
+            z=z,
+            increment=increment
+        )
 
         self.x_vals = np.arange(self.mic_grid.x_min, self.mic_grid.x_max + self.mic_grid.increment, self.mic_grid.increment)
         self.y_vals = np.arange(self.mic_grid.y_min, self.mic_grid.y_max + self.mic_grid.increment, self.mic_grid.increment)
