@@ -24,7 +24,7 @@ class HelperService:
             x_max=horizontal_distance, 
             y_min=-vertical_distance, 
             y_max=vertical_distance,
-            z=-z, increment=increment
+            z=z, increment=increment
         )
     
     @staticmethod

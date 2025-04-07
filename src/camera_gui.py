@@ -45,7 +45,7 @@ class PiCamApp:
             self.cleanup()
             exit()
 
-        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=1.0, increment=0.01, bandwidth=3)
+        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02, bandwidth=1)
         self.frame_count = 0
         self.bf_map = None
 
