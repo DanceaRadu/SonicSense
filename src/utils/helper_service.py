@@ -17,15 +17,14 @@ class HelperService:
 
         horizontal_distance = z * horizontal_angle_tangent
         vertical_distance = z * vertical_angle_tangent
-
-        final_distance = round(max(horizontal_distance, vertical_distance), 1)
+        print(f"Horizontal distance: {horizontal_distance}, Vertical distance: {vertical_distance}")
 
         return RectGrid(
-            x_min=-final_distance, 
-            x_max=final_distance, 
-            y_min=-final_distance, 
-            y_max=final_distance,
-            z=z, increment=increment
+            x_min=-horizontal_distance, 
+            x_max=horizontal_distance, 
+            y_min=-vertical_distance, 
+            y_max=vertical_distance,
+            z=-z, increment=increment
         )
     
     @staticmethod

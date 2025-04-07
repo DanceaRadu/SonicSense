@@ -19,12 +19,14 @@ class PiCamApp:
         # Create GUI components
         self.video_label = tk.Label(root)
         self.video_label.pack()
+        self.sound_threshold = 1.0
 
         # Start the libcamera-vid + ffmpeg pipeline
         self.pipeline_cmd = (
-            "libcamera-vid -t 0 --width 1536 --height 864 --framerate 30 "
+            "libcamera-vid -t 0 --width 4608 --height 2592 --framerate 15 "
             "--codec yuv420 --nopreview -o - | "
-            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 1536x864 -i - "
+            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
+            "-vf scale=960:540 "
             "-f v4l2 /dev/video10"
         )
 
@@ -43,7 +45,7 @@ class PiCamApp:
             self.cleanup()
             exit()
 
-        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.3, increment=0.02)
+        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=1.0, increment=0.01, bandwidth=3)
         self.frame_count = 0
         self.bf_map = None
 
@@ -58,21 +60,26 @@ class PiCamApp:
 
             # Update beamformer every N frames (to reduce load)
             if self.frame_count % 3 == 0:
-                self.bf_map = self.beamformer.get_current_map()
+                self.bf_map = self.beamformer.get_current_map(self.sound_threshold)
 
             self.frame_count += 1
 
             if self.bf_map is not None:
                 # Normalize and apply colormap
                 bf_map = self.bf_map
-                bf_map = np.rot90(bf_map, k=1)
+                bf_map = np.rot90(bf_map, k=-1)
+                bf_map = np.fliplr(bf_map)
+                bf_map = np.flipud(bf_map)
                 bf_map = (bf_map - bf_map.min()) / (bf_map.max() - bf_map.min() + 1e-6)
+                bf_map = cv2.resize(bf_map, (frame.shape[1], frame.shape[0]))
                 bf_color = cm.jet(bf_map)[:, :, :3]
                 bf_color = (bf_color * 255).astype(np.uint8)
-                bf_color = cv2.resize(bf_color, (frame.shape[1], frame.shape[0]))
+                print(bf_color.shape)
+                print(frame.shape)
+                print(bf_color.shape)
 
                 # Overlay beamformer heatmap onto video frame
-                frame = cv2.addWeighted(frame, 0.6, bf_color, 0.4, 0)
+                frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
 
             # Show in Tkinter
             image = Image.fromarray(frame)

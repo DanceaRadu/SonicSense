@@ -20,13 +20,10 @@ class BeamformerMap:
             increment=increment
         )
 
-        self.x_vals = np.arange(self.mic_grid.x_min, self.mic_grid.x_max + self.mic_grid.increment, self.mic_grid.increment)
-        self.y_vals = np.arange(self.mic_grid.y_min, self.mic_grid.y_max + self.mic_grid.increment, self.mic_grid.increment)
-
         self.steeringVector = SteeringVector(grid=self.mic_grid, mics=self.mic_array)
 
 
-    def get_current_map(self):
+    def get_current_map(self, threshold):
         try:
             mch_generator = SoundDeviceSamplesGenerator(
                 device=0,
@@ -40,8 +37,9 @@ class BeamformerMap:
             bf = BeamformerBase(freq_data=ps, steer=self.steeringVector, cached=False)
 
             bf_map = bf.synthetic(self.freq, self.bandwidth)
-            return bf_map.reshape(len(self.y_vals), len(self.x_vals))
+            bf_map[bf_map < threshold] = 0
+            return bf_map.reshape(self.mic_grid.nxsteps, self.mic_grid.nysteps)
 
         except Exception as e:
             print(f"Beamformer error: {e}")
-            return np.zeros((len(self.y_vals), len(self.x_vals)))
+            return np.zeros((self.mic_grid.nxsteps, self.mic_grid.nysteps))
