@@ -5,7 +5,7 @@ import cv2
 import time
 import os
 import signal
-import tkinter as tk
+import customtkinter as ctk
 from PIL import Image, ImageTk
 import numpy as np
 from matplotlib import cm
@@ -26,23 +26,22 @@ class PiCamApp:
         HelperService.ensure_v4l2loopback_device_exists()
 
         # Create GUI components
-        self.video_label = tk.Label(root)
-        self.video_label.pack(fill=tk.BOTH, expand=True)
+        self.video_label = ctk.CTkLabel(root, text="")
+        self.video_label.pack(fill=ctk.BOTH, expand=True)
 
         gear_img = Image.open("resources/icons/settings_icon.png")
         gear_img = gear_img.resize((40, 40), Image.Resampling.LANCZOS)
-        self.gear_photo = ImageTk.PhotoImage(gear_img)
+        self.gear_photo = ctk.CTkImage(light_image=gear_img, dark_image=gear_img, size=(40, 40))
 
-        self.settings_button = tk.Button(
+        self.settings_button = ctk.CTkButton(
             self.root,
             image=self.gear_photo,
             command=self.open_settings_window,
-            bd=0,
-            bg="#000",
-            activebackground="#000",
-            relief=tk.FLAT,
-            cursor="hand2"
-        )    
+            text="",
+            width=40,
+            height=40,
+            corner_radius=0
+        )
         self.settings_button.place(relx=0.98, rely=0.95, anchor="se")
 
         # Start the libcamera-vid + ffmpeg pipeline
@@ -154,9 +153,9 @@ class PiCamApp:
 
             resized_frame = cv2.resize(frame, (new_width-2, new_height-2))
             image = Image.fromarray(resized_frame)
-            photo = ImageTk.PhotoImage(image=image)
-            self.video_label.imgtk = photo
-            self.video_label.configure(image=photo)
+            ctk_image = ctk.CTkImage(light_image=image, size=(new_width, new_height))
+            self.video_label.configure(image=ctk_image, text="")
+            self.video_label.image = ctk_image 
 
         self.root.after(30, self.update_frame)
 
@@ -174,6 +173,6 @@ class PiCamApp:
         os.killpg(os.getpgid(self.pipeline_process.pid), signal.SIGTERM)
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = ctk.CTk()
     app = PiCamApp(root)
     root.mainloop()
