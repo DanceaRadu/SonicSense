@@ -7,11 +7,7 @@ import numpy as np
 
 class BeamformerMap:
     def __init__(self, horizonatal_fov, vertical_fov, z,
-                 mic_file='resources/array_16.xml', 
-                 freq=1000, increment=0.01, bandwidth=3):
-        
-        self.freq = freq
-        self.bandwidth = bandwidth
+                 mic_file='resources/array_16.xml', increment=0.01):
 
         self.mic_array = MicGeom(file=mic_file)
         self.mic_grid = HelperService.getRectGridBasedOnCameraFOV(
@@ -23,7 +19,7 @@ class BeamformerMap:
         self.steeringVector = SteeringVector(grid=self.mic_grid, mics=self.mic_array)
 
 
-    def get_current_map(self, threshold):
+    def get_current_map(self, threshold, frequency=1000, bandwidth=1):
         try:
             mch_generator = SoundDeviceSamplesGenerator(
                 device=0,
@@ -36,7 +32,7 @@ class BeamformerMap:
             ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=False)
             bf = BeamformerBase(freq_data=ps, steer=self.steeringVector, cached=False)
 
-            bf_map = bf.synthetic(self.freq, self.bandwidth)
+            bf_map = bf.synthetic(frequency, bandwidth)
             bf_map[bf_map < threshold] = 0
             return bf_map.reshape(self.mic_grid.nxsteps, self.mic_grid.nysteps)
 

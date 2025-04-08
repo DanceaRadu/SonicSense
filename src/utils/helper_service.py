@@ -28,7 +28,7 @@ class HelperService:
         )
     
     @staticmethod
-    def ensure_v4l2loopback_device(device="/dev/video10", label="PiCam"):
+    def ensure_v4l2loopback_device_exists(device="/dev/video10", label="PiCam"):
         if not os.path.exists(device):
             print(f"Creating {device} using v4l2loopback...")
             try:

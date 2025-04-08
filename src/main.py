@@ -1,67 +1,111 @@
-from acoular import (
-    SoundDeviceSamplesGenerator, MicGeom, RectGrid,
-    BeamformerBase, PowerSpectra, SteeringVector, RFFT, FFTSpectra
-)
-import matplotlib.pyplot as plt
+from beamformer_map import BeamformerMap
+from utils.helper_service import HelperService
+import subprocess
+import cv2
+import time
+import os
+import signal
+import tkinter as tk
+from PIL import Image, ImageTk
 import numpy as np
-from matplotlib.animation import FuncAnimation
+from matplotlib import cm
 
-mic_array =  MicGeom(file='resources/array_16.xml')
-mic_grid = RectGrid(x_min=-0.5, x_max=0.5, y_min=-0.5, y_max=0.5, z=0.5, increment=0.02)
+class PiCamApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SonicSense")
+        HelperService.ensure_v4l2loopback_device_exists()
 
-# # Extract mic positions
-# x, y, z = mic_array.mpos  # mg.mpos has shape (3, N)
+        # Create GUI components
+        self.video_label = tk.Label(root)
+        self.video_label.pack()
 
-# # 2D plot (XY-plane)
-# plt.figure(figsize=(6, 6))
-# plt.scatter(x, y, marker='o', color='blue')
-# for i in range(len(x)):
-#     plt.text(x[i], y[i], str(i+1), fontsize=9, ha='right')
-# plt.xlabel('X [m]')
-# plt.ylabel('Y [m]')
-# plt.title('Microphone Array Geometry (XY Plane)')
-# plt.axis('equal')
-# plt.grid(True)
-# plt.show()
+        self.set_configuration_from_user_settings()
 
-# Manually create x and y axis based on grid config
-x_vals = np.arange(mic_grid.x_min, mic_grid.x_max + mic_grid.increment, mic_grid.increment)
-y_vals = np.arange(mic_grid.y_min, mic_grid.y_max + mic_grid.increment, mic_grid.increment)
-x_mesh, y_mesh = np.meshgrid(x_vals, y_vals)
-
-# Set up live plot
-fig, ax = plt.subplots()
-initial_data = np.zeros_like(x_mesh)
-img = ax.imshow(initial_data, extent=[x_vals[0], x_vals[-1], y_vals[0], y_vals[-1]],
-                origin='lower', vmin=0, vmax=1, aspect='auto')
-cbar = plt.colorbar(img, ax=ax)
-cbar.set_label("Beamformer Output")
-ax.set_title("Live Sound Source Localization")
-ax.set_xlabel("X [m]")
-ax.set_ylabel("Y [m]")
-
-# Update function for animation
-def update(frame):
-    global prev_map
-    try:
-        mch_generator = SoundDeviceSamplesGenerator(
-            device=0,
-            num_channels=16,
-            sample_freq=48000,
-            precision='int16',
-            numsamples=1024
+        # Start the libcamera-vid + ffmpeg pipeline
+        self.pipeline_cmd = (
+            "libcamera-vid -t 0 --width 4608 --height 2592 --framerate 15 "
+            "--codec yuv420 --nopreview -o - | "
+            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
+            "-vf scale=960:540 "
+            "-f v4l2 /dev/video10"
         )
-        ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=False)
-        st = SteeringVector(grid=mic_grid, mics=mic_array)
-        bf = BeamformerBase(freq_data=ps, steer=st, cached=False)
-        bf_map = bf.synthetic(1000, 3)
-        bf_map = bf_map.reshape(len(y_vals), len(x_vals))
-   
-        img.set_data(bf_map)
-        img.set_clim(vmin=np.min(bf_map), vmax=np.max(bf_map))
-    except Exception as e:
-        print(f"Update error: {e}")
 
-# Run animation
-ani = FuncAnimation(fig, update, interval=20, blit=False, cache_frame_data=False, repeat=False)
-plt.show()
+        self.pipeline_process = subprocess.Popen(
+            self.pipeline_cmd,
+            shell=True,
+            preexec_fn=os.setsid
+        )
+
+        # Give the camera a second to warm up
+        time.sleep(2)
+
+        self.cap = cv2.VideoCapture("/dev/video10", cv2.CAP_V4L2)
+        if not self.cap.isOpened():
+            print("❌ Could not open /dev/video10")
+            self.cleanup()
+            exit()
+
+        self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02)
+        self.frame_count = 0
+        self.bf_map = None
+
+        self.update_frame()
+        self.root.bind('<Alt-F4>', self.on_close)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def set_configuration_from_user_settings(self):
+        self.sound_threshold = 1.0
+        self.frequency = 1000
+        self.bandwidth = 1
+
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Update beamformer every N frames (to reduce load)
+            if self.frame_count % 3 == 0:
+                self.bf_map = self.beamformer.get_current_map(
+                    self.sound_threshold, 
+                    frequency=self.frequency, 
+                    bandwidth=self.bandwidth
+                )
+
+            self.frame_count += 1
+
+            if self.bf_map is not None:
+                # Normalize and apply colormap
+                bf_map = self.bf_map
+                bf_map = np.rot90(bf_map, k=-1)
+                bf_map = np.fliplr(bf_map)
+                bf_map = np.flipud(bf_map)
+                bf_map = (bf_map - bf_map.min()) / (bf_map.max() - bf_map.min() + 1e-6)
+                bf_map = cv2.resize(bf_map, (frame.shape[1], frame.shape[0]))
+                bf_color = cm.jet(bf_map)[:, :, :3]
+                bf_color = (bf_color * 255).astype(np.uint8)
+
+                frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
+
+            image = Image.fromarray(frame)
+            photo = ImageTk.PhotoImage(image=image)
+            self.video_label.imgtk = photo
+            self.video_label.configure(image=photo)
+
+        self.root.after(30, self.update_frame)
+
+    def on_close(self):
+        self.cleanup()
+        self.root.destroy()
+
+    def cleanup(self):
+        print("Cleaning up...")
+        if self.cap:
+            self.cap.release()
+        os.killpg(os.getpgid(self.pipeline_process.pid), signal.SIGTERM)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PiCamApp(root)
+    root.mainloop()
