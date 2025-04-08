@@ -10,12 +10,13 @@ from PIL import Image, ImageTk
 import numpy as np
 from matplotlib import cm
 import json
+from components.settings_window import SettingsWindow
 
 class PiCamApp:
     def __init__(self, root):
         self.root = root
         self.settings_path = "user_settings.json"
-        self.set_configuration_from_user_settings()
+        self.load_user_settings_from_file()
 
         self.root.title("SonicSense")
         self.root.attributes('-fullscreen', True)
@@ -77,7 +78,7 @@ class PiCamApp:
         self.root.bind("<Escape>", self.on_close)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def set_configuration_from_user_settings(self):
+    def load_user_settings_from_file(self):
         default_config = {
             "sound_threshold": 1.0,
             "frequency": 1000,
@@ -95,18 +96,15 @@ class PiCamApp:
             print(f"Error loading user settings: {e}")
             user_config = {}
 
-        self.sound_threshold = user_config.get("sound_threshold", default_config["sound_threshold"])
-        self.frequency = user_config.get("frequency", default_config["frequency"])
-        self.bandwidth = user_config.get("bandwidth", default_config["bandwidth"])
-
         merged_config = {
-            "sound_threshold": self.sound_threshold,
-            "frequency": self.frequency,
-            "bandwidth": self.bandwidth
+            "sound_threshold": user_config.get("sound_threshold", default_config["sound_threshold"]),
+            "frequency": user_config.get("frequency", default_config["frequency"]),
+            "bandwidth": user_config.get("bandwidth", default_config["bandwidth"])
         }
         self.set_user_settings(merged_config)
 
     def set_user_settings(self, user_settings):
+        self.user_settings = user_settings
         try:
             with open(self.settings_path, "w") as f:
                 json.dump(user_settings, f, indent=4)
@@ -121,9 +119,9 @@ class PiCamApp:
             # Update beamformer every N frames (to reduce load)
             if self.frame_count % 3 == 0:
                 self.bf_map = self.beamformer.get_current_map(
-                    self.sound_threshold, 
-                    frequency=self.frequency, 
-                    bandwidth=self.bandwidth
+                    self.user_settings.get("sound_threshold"), 
+                    frequency=self.user_settings.get("frequency"), 
+                    bandwidth=self.user_settings.get("bandwidth")
                 )
 
             self.frame_count += 1
@@ -160,7 +158,7 @@ class PiCamApp:
         self.root.after(30, self.update_frame)
 
     def open_settings_window(self):
-        print("Opening settings window...")
+        SettingsWindow(self.root, self.user_settings, settings_callback=self.set_user_settings)
 
     def on_close(self):
         self.cleanup()
