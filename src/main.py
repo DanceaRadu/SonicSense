@@ -14,7 +14,7 @@ from components.settings_window import SettingsWindow
 import threading
 from webrtc_tracks import OpenCVVideoStreamTrack, DummyVideoStreamTrack
 import asyncio
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate, RTCDataChannel
 import websockets
 
 class PiCamApp:
@@ -192,13 +192,19 @@ class PiCamApp:
         asyncio.run(self.run_webrtc())
 
     async def run_webrtc(self):
-        config = RTCConfiguration([RTCIceServer(urls=["stun:stun.l.google.com:19302"])])
+        config = RTCConfiguration([
+            RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun2.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun3.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun4.l.google.com:19302"]),
+        ])
         pc = RTCPeerConnection(configuration=config)
         pc.addTrack(self.webrtc_track)
 
         uri = "wss://sonic-sense-signaling.gonemesis.org"
         async with websockets.connect(uri) as websocket:
-            print("Connected to signaling server")
+            print(f"\n---- CONNECTED TO SIGNALING SERVER -----\n")
 
             offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
@@ -213,16 +219,17 @@ class PiCamApp:
                 data = json.loads(message)
 
                 if data["type"] == "answer":
-                    print("Received SDP answer")
+                    print(f"\n---- RECEIVED SDP ANSWER -----\n")
                     answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
                     await pc.setRemoteDescription(answer)
 
                 elif data["type"] == "candidate":
-                    print("Received ICE candidate")
                     candidate_dict = data["candidate"]
                     candidate = self.dict_to_candidate(candidate_dict)
-                    await pc.addIceCandidate(candidate)
-                print(data)
+                    if candidate.ip:
+                        print(f"\n---- RECEIVED CANDIDATE -----\n")
+                        await pc.addIceCandidate(candidate)
+                        print(data)
 
     def dict_to_candidate(self, data):
         return RTCIceCandidate(
