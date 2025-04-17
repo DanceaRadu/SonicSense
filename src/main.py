@@ -18,6 +18,11 @@ class PiCamApp:
         self.settings_path = "user_settings.json"
         self.load_user_settings_from_file()
 
+        self.rtmp_url = ""
+        self.frame_width = 960
+        self.frame_height = 540
+        self.framerate = 15
+
         self.root.title("SonicSense")
         self.root.attributes('-fullscreen', True)
         # self.root.overrideredirect(True)
@@ -45,20 +50,35 @@ class PiCamApp:
         )
         self.settings_button.place(relx=0.98, rely=0.95, anchor="se")
 
-        # Start the libcamera-vid + ffmpeg pipeline
-        self.pipeline_cmd = (
-            "libcamera-vid -t 0 --width 4608 --height 2592 --framerate 15 "
-            "--codec yuv420 --nopreview -o - | "
-            "ffmpeg -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
-            "-vf scale=960:540 "
-            "-f v4l2 /dev/video10"
+        pipeline_cmd = (
+            f"libcamera-vid -t 0 --width 4608 --height 2592 --framerate {self.framerate} "
+            f"--codec yuv420 --nopreview -o - | "
+            f"ffmpeg -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
+            f"-vf scale={self.frame_width}:{self.frame_height} "
+            f"-f v4l2 /dev/video10"
         )
 
         self.pipeline_process = subprocess.Popen(
-            self.pipeline_cmd,
+            pipeline_cmd,
             shell=True,
             preexec_fn=os.setsid
         )
+
+        self.rtmp_process = subprocess.Popen([
+            'ffmpeg',
+            '-y',
+            '-f', 'rawvideo',
+            '-vcodec','rawvideo',
+            '-pix_fmt', 'rgb24',
+            '-s', f'{self.frame_width}x{self.frame_height}',
+            '-r', str(self.framerate),
+            '-i', '-',
+            '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'veryfast',
+            '-f', 'flv',
+            self.rtmp_url
+        ], stdin=subprocess.PIPE)
 
         # Give the camera a second to warm up
         time.sleep(2)
@@ -155,6 +175,12 @@ class PiCamApp:
             self.video_label.configure(image=ctk_image, text="")
             self.video_label.image = ctk_image 
 
+            if self.rtmp_process and self.rtmp_process.stdin:
+                try:
+                    self.rtmp_process.stdin.write(frame.astype(np.uint8).tobytes())
+                except Exception as e:
+                    print(f"Error writing to FFmpeg stdin for RTMP: {e}")
+
         self.root.after(30, self.update_frame)
 
     def open_settings_window(self):
@@ -169,6 +195,9 @@ class PiCamApp:
         if self.video_capture:
             self.video_capture.release()
         os.killpg(os.getpgid(self.pipeline_process.pid), signal.SIGTERM)
+        if self.rtmp_process:
+            self.rtmp_process.stdin.close()
+            self.rtmp_process.wait()
 
 if __name__ == "__main__":
     root = ctk.CTk()
