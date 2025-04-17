@@ -11,6 +11,11 @@ import numpy as np
 from matplotlib import cm
 import json
 from components.settings_window import SettingsWindow
+import threading
+from webrtc_tracks import OpenCVVideoStreamTrack, DummyVideoStreamTrack
+import asyncio
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate
+import websockets
 
 class PiCamApp:
     def __init__(self, root):
@@ -18,7 +23,6 @@ class PiCamApp:
         self.settings_path = "user_settings.json"
         self.load_user_settings_from_file()
 
-        self.rtmp_url = ""
         self.frame_width = 960
         self.frame_height = 540
         self.framerate = 15
@@ -64,22 +68,6 @@ class PiCamApp:
             preexec_fn=os.setsid
         )
 
-        self.rtmp_process = subprocess.Popen([
-            'ffmpeg',
-            '-y',
-            '-f', 'rawvideo',
-            '-vcodec','rawvideo',
-            '-pix_fmt', 'rgb24',
-            '-s', f'{self.frame_width}x{self.frame_height}',
-            '-r', str(self.framerate),
-            '-i', '-',
-            '-c:v', 'libx264',
-            '-pix_fmt', 'yuv420p',
-            '-preset', 'veryfast',
-            '-f', 'flv',
-            self.rtmp_url
-        ], stdin=subprocess.PIPE)
-
         # Give the camera a second to warm up
         time.sleep(2)
 
@@ -94,6 +82,10 @@ class PiCamApp:
         self.bf_map = None
 
         self.update_frame()
+        # self.webrtc_track = OpenCVVideoStreamTrack(self)
+        self.webrtc_track = DummyVideoStreamTrack()
+        threading.Thread(target=self.start_webrtc_loop, daemon=True).start()
+
         self.root.bind('<Alt-F4>', self.on_close)
         self.root.bind("<Escape>", self.on_close)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -175,11 +167,11 @@ class PiCamApp:
             self.video_label.configure(image=ctk_image, text="")
             self.video_label.image = ctk_image 
 
-            if self.rtmp_process and self.rtmp_process.stdin:
-                try:
-                    self.rtmp_process.stdin.write(frame.astype(np.uint8).tobytes())
-                except Exception as e:
-                    print(f"Error writing to FFmpeg stdin for RTMP: {e}")
+            # if hasattr(self, 'webrtc_track'):
+            #     print("")
+            #     print("Copied frame")
+            #     print("")
+            #     self.webrtc_track.frame = frame.copy()
 
         self.root.after(30, self.update_frame)
 
@@ -195,9 +187,58 @@ class PiCamApp:
         if self.video_capture:
             self.video_capture.release()
         os.killpg(os.getpgid(self.pipeline_process.pid), signal.SIGTERM)
-        if self.rtmp_process:
-            self.rtmp_process.stdin.close()
-            self.rtmp_process.wait()
+
+    def start_webrtc_loop(self):
+        asyncio.run(self.run_webrtc())
+
+    async def run_webrtc(self):
+        config = RTCConfiguration([RTCIceServer(urls=["stun:stun.l.google.com:19302"])])
+        pc = RTCPeerConnection(configuration=config)
+        pc.addTrack(self.webrtc_track)
+
+        uri = "wss://sonic-sense-signaling.gonemesis.org"
+        async with websockets.connect(uri) as websocket:
+            print("Connected to signaling server")
+
+            offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+
+            await websocket.send(json.dumps({
+                "type": "offer",
+                "sdp": pc.localDescription.sdp,
+                "sdpType": pc.localDescription.type
+            }))
+
+            async for message in websocket:
+                data = json.loads(message)
+
+                if data["type"] == "answer":
+                    print("Received SDP answer")
+                    answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
+                    await pc.setRemoteDescription(answer)
+
+                elif data["type"] == "candidate":
+                    print("Received ICE candidate")
+                    candidate_dict = data["candidate"]
+                    candidate = self.dict_to_candidate(candidate_dict)
+                    await pc.addIceCandidate(candidate)
+                print(data)
+
+    def dict_to_candidate(self, data):
+        return RTCIceCandidate(
+            component=data["component"],
+            foundation=data["foundation"],
+            ip=data["ip"],
+            port=data["port"],
+            priority=data["priority"],
+            protocol=data["protocol"],
+            type=data["type"],
+            relatedAddress=data.get("relatedAddress"),
+            relatedPort=data.get("relatedPort"),
+            sdpMid=data["sdpMid"],      
+            sdpMLineIndex=data["sdpMLineIndex"],
+            tcpType=data.get("tcpType"),
+        )
 
 if __name__ == "__main__":
     root = ctk.CTk()
