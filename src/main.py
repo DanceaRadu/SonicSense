@@ -188,44 +188,52 @@ class PiCamApp:
         asyncio.run(self.run_webrtc())
 
     async def run_webrtc(self):
-        config = RTCConfiguration([
-            RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
-            RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
-            RTCIceServer(urls=["stun:stun2.l.google.com:19302"]),
-            RTCIceServer(urls=["stun:stun3.l.google.com:19302"]),
-            RTCIceServer(urls=["stun:stun4.l.google.com:19302"]),
-        ])
-        pc = RTCPeerConnection(configuration=config)
-        pc.addTrack(self.webrtc_track)
+        self.pc = self.create_peer_connection()
 
         uri = "wss://sonic-sense-signaling.gonemesis.org"
         async with websockets.connect(uri) as websocket:
             print(f"\n---- CONNECTED TO SIGNALING SERVER -----\n")
 
-            offer = await pc.createOffer()
-            await pc.setLocalDescription(offer)
+            offer = await self.pc.createOffer()
+            await self.pc.setLocalDescription(offer)
 
             await websocket.send(json.dumps({
                 "type": "offer",
-                "sdp": pc.localDescription.sdp,
-                "sdpType": pc.localDescription.type
+                "sdp": self.pc.localDescription.sdp,
+                "sdpType": self.pc.localDescription.type
             }))
 
             async for message in websocket:
                 data = json.loads(message)
 
-                if data["type"] == "answer":
-                    print(f"\n---- RECEIVED SDP ANSWER -----\n")
-                    answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
-                    await pc.setRemoteDescription(answer)
+                try:
+                    if data["type"] == "answer":
+                        print(f"\n---- RECEIVED SDP ANSWER -----\n")
+                        answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
+                        await self.pc.setRemoteDescription(answer)
 
-                elif data["type"] == "candidate":
-                    candidate_dict = data["candidate"]
-                    candidate = self.dict_to_candidate(candidate_dict)
-                    if candidate.ip:
-                        print(f"\n---- RECEIVED CANDIDATE -----\n")
-                        await pc.addIceCandidate(candidate)
-                        print(data)
+                    elif data["type"] == "request-offer":
+                        print(f"\n---- RECEIVED OFFER REQUEST -----\n")
+                        await self.pc.close()
+                        self.pc = self.create_peer_connection()
+                        offer = await self.pc.createOffer()
+                        await self.pc.setLocalDescription(offer)
+                        await websocket.send(json.dumps({
+                            "type": "offer",
+                            "sdp": self.pc.localDescription.sdp,
+                            "sdpType": self.pc.localDescription.type
+                        }))
+
+                    elif data["type"] == "candidate":
+                        candidate_dict = data["candidate"]
+                        candidate = self.dict_to_candidate(candidate_dict)
+                        if candidate.ip:
+                            print(f"\n---- RECEIVED CANDIDATE -----\n")
+                            await self.pc.addIceCandidate(candidate)
+                            print(data)
+                except Exception as e:
+                    print(f"Error processing message: {e}")
+                
 
     def dict_to_candidate(self, data):
         return RTCIceCandidate(
@@ -242,6 +250,18 @@ class PiCamApp:
             sdpMLineIndex=data["sdpMLineIndex"],
             tcpType=data.get("tcpType"),
         )
+    
+    def create_peer_connection(self):
+        config = RTCConfiguration([
+            RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun2.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun3.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun4.l.google.com:19302"]),
+        ])
+        pc = RTCPeerConnection(configuration=config)
+        pc.addTrack(self.webrtc_track)
+        return pc
 
 if __name__ == "__main__":
     root = ctk.CTk()
