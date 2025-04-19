@@ -168,9 +168,6 @@ class PiCamApp:
             self.video_label.image = ctk_image 
 
             # if hasattr(self, 'webrtc_track'):
-            #     print("")
-            #     print("Copied frame")
-            #     print("")
             #     self.webrtc_track.frame = frame.copy()
 
         self.root.after(30, self.update_frame)
