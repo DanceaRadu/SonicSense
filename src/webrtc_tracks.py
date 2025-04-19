@@ -12,20 +12,26 @@ class OpenCVVideoStreamTrack(MediaStreamTrack):
         super().__init__()
         self.app = app
         self.frame = None
+        self.start = time.time()
+        self.timestamp = 0
+        self.time_base = fractions.Fraction(1, 90000)  # 90kHz clock rate
+        self.frame_interval = 1 / 30  # target ~30 fps
 
     async def recv(self):
         print(self.frame)
-        print(f"\n---- SENDING WEBRTC FRAME -----\n")
-        if(self.frame is None):
+
+        if self.frame is None:
+            await asyncio.sleep(self.frame_interval)
             return
-        
-        pts, time_base = await self.next_timestamp()
+
+        await asyncio.sleep(self.frame_interval)
 
         frame = VideoFrame.from_ndarray(self.frame, format="bgr24")
-        frame.pts = pts
-        frame.time_base = time_base
 
-        # await asyncio.sleep(0.01)
+        self.timestamp += int(self.frame_interval * 90000)
+        frame.pts = self.timestamp
+        frame.time_base = self.time_base
+
         return frame
 
 

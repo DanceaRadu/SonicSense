@@ -82,8 +82,7 @@ class PiCamApp:
         self.bf_map = None
 
         self.update_frame()
-        # self.webrtc_track = OpenCVVideoStreamTrack(self)
-        self.webrtc_track = DummyVideoStreamTrack()
+        self.webrtc_track = OpenCVVideoStreamTrack(self)
         threading.Thread(target=self.start_webrtc_loop, daemon=True).start()
 
         self.root.bind('<Alt-F4>', self.on_close)
@@ -167,8 +166,8 @@ class PiCamApp:
             self.video_label.configure(image=ctk_image, text="")
             self.video_label.image = ctk_image 
 
-            # if hasattr(self, 'webrtc_track'):
-            #     self.webrtc_track.frame = frame.copy()
+            if hasattr(self, 'webrtc_track'):
+                self.webrtc_track.frame = frame.copy()
 
         self.root.after(30, self.update_frame)
 
