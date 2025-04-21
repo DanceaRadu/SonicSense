@@ -74,7 +74,8 @@ class PiCamApp:
         default_config = {
             "sound_threshold": 1.0,
             "frequency": 1000,
-            "bandwidth": 1
+            "bandwidth": 1,
+            "event_sound_threshold": 2.0,
         }
 
         try:
@@ -90,7 +91,8 @@ class PiCamApp:
         merged_config = {
             "sound_threshold": user_config.get("sound_threshold", default_config["sound_threshold"]),
             "frequency": user_config.get("frequency", default_config["frequency"]),
-            "bandwidth": user_config.get("bandwidth", default_config["bandwidth"])
+            "bandwidth": user_config.get("bandwidth", default_config["bandwidth"]),
+            "event_sound_threshold": user_config.get("event_sound_threshold", default_config["event_sound_threshold"]),
         }
         self.set_user_settings(merged_config)
 

@@ -1,5 +1,6 @@
 {
     "sound_threshold": 1.0,
     "frequency": 1000,
-    "bandwidth": 1
+    "bandwidth": 1,
+    "event_sound_threshold": 2.0
 }
