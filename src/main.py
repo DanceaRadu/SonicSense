@@ -6,13 +6,13 @@ import time
 import os
 import signal
 import customtkinter as ctk
-from PIL import Image, ImageTk
+from PIL import Image
 import numpy as np
 from matplotlib import cm
 import json
 from components.settings_window import SettingsWindow
 import threading
-from webrtc_tracks import OpenCVVideoStreamTrack, DummyVideoStreamTrack
+from webrtc_tracks import OpenCVVideoStreamTrack
 import asyncio
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate, RTCDataChannel
 import websockets
@@ -26,32 +26,17 @@ class PiCamApp:
         self.frame_width = 960
         self.frame_height = 540
         self.framerate = 15
-
-        self.root.title("SonicSense")
-        self.root.attributes('-fullscreen', True)
-        # self.root.overrideredirect(True)
-        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
-        self.root.update_idletasks()
+        self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
+        self.backend_url = "https://sonic-sense-backend.gonemesis.org"
+        self.backend_api_key = ""
+        self.set_root_attributes()
 
         HelperService.ensure_v4l2loopback_device_exists()
 
-        # Create GUI components
+        # GUI elements
         self.video_label = ctk.CTkLabel(root, text="")
         self.video_label.pack(fill=ctk.BOTH, expand=True)
-
-        gear_img = Image.open("resources/icons/settings_icon.png")
-        gear_img = gear_img.resize((40, 40), Image.Resampling.LANCZOS)
-        self.gear_photo = ctk.CTkImage(light_image=gear_img, dark_image=gear_img, size=(40, 40))
-
-        self.settings_button = ctk.CTkButton(
-            self.root,
-            image=self.gear_photo,
-            command=self.open_settings_window,
-            text="",
-            width=40,
-            height=40,
-            corner_radius=0
-        )
+        self.settings_button = self.create_settings_button()
         self.settings_button.place(relx=0.98, rely=0.95, anchor="se")
 
         pipeline_cmd = (
@@ -68,7 +53,7 @@ class PiCamApp:
             preexec_fn=os.setsid
         )
 
-        # Give the camera a second to warm up
+        # Camera warm-up time
         time.sleep(2)
 
         self.video_capture = cv2.VideoCapture("/dev/video10", cv2.CAP_V4L2)
@@ -81,13 +66,9 @@ class PiCamApp:
         self.frame_count = 0
         self.bf_map = None
 
-        self.update_frame()
         self.webrtc_track = OpenCVVideoStreamTrack(self)
+        self.update_frame()
         threading.Thread(target=self.start_webrtc_loop, daemon=True).start()
-
-        self.root.bind('<Alt-F4>', self.on_close)
-        self.root.bind("<Escape>", self.on_close)
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def load_user_settings_from_file(self):
         default_config = {
@@ -102,7 +83,6 @@ class PiCamApp:
                     user_config = json.load(f)
             else:
                 user_config = {}
-
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error loading user settings: {e}")
             user_config = {}
@@ -121,6 +101,30 @@ class PiCamApp:
                 json.dump(user_settings, f, indent=4)
         except IOError as e:
             print(f"Failed to save user settings: {e}")
+
+    def create_settings_button(self):
+        gear_img = Image.open("resources/icons/settings_icon.png")
+        gear_img = gear_img.resize((40, 40), Image.Resampling.LANCZOS)
+        gear_photo = ctk.CTkImage(light_image=gear_img, dark_image=gear_img, size=(40, 40))
+
+        return ctk.CTkButton(
+            self.root,
+            image=gear_photo,
+            command=self.open_settings_window,
+            text="",
+            width=40,
+            height=40,
+            corner_radius=0
+        )
+
+    def set_root_attributes(self):
+        self.root.title("SonicSense")
+        self.root.attributes('-fullscreen', True)
+        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
+        self.root.update_idletasks()
+        self.root.bind('<Alt-F4>', self.on_close)
+        self.root.bind("<Escape>", self.on_close)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_frame(self):
         ret, frame = self.video_capture.read()
@@ -190,8 +194,7 @@ class PiCamApp:
     async def run_webrtc(self):
         self.pc = self.create_peer_connection()
 
-        uri = "wss://sonic-sense-signaling.gonemesis.org"
-        async with websockets.connect(uri) as websocket:
+        async with websockets.connect(self.signaling_url) as websocket:
             print(f"\n---- CONNECTED TO SIGNALING SERVER -----\n")
 
             offer = await self.pc.createOffer()
@@ -204,36 +207,37 @@ class PiCamApp:
             }))
 
             async for message in websocket:
-                data = json.loads(message)
-
                 try:
-                    if data["type"] == "answer":
-                        print(f"\n---- RECEIVED SDP ANSWER -----\n")
-                        answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
-                        await self.pc.setRemoteDescription(answer)
-
-                    elif data["type"] == "request-offer":
-                        print(f"\n---- RECEIVED OFFER REQUEST -----\n")
-                        await self.pc.close()
-                        self.pc = self.create_peer_connection()
-                        offer = await self.pc.createOffer()
-                        await self.pc.setLocalDescription(offer)
-                        await websocket.send(json.dumps({
-                            "type": "offer",
-                            "sdp": self.pc.localDescription.sdp,
-                            "sdpType": self.pc.localDescription.type
-                        }))
-
-                    elif data["type"] == "candidate":
-                        candidate_dict = data["candidate"]
-                        candidate = self.dict_to_candidate(candidate_dict)
-                        if candidate.ip:
-                            print(f"\n---- RECEIVED CANDIDATE -----\n")
-                            await self.pc.addIceCandidate(candidate)
-                            print(data)
+                    data = json.loads(message)
+                    await self.handle_rtc_message(data, websocket)
                 except Exception as e:
                     print(f"Error processing message: {e}")
-                
+
+    async def handle_rtc_message(self, data, websocket):
+        if data["type"] == "answer":
+            print(f"\n---- RECEIVED SDP ANSWER -----\n")
+            answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
+            await self.pc.setRemoteDescription(answer)
+
+        elif data["type"] == "request-offer":
+            print(f"\n---- RECEIVED OFFER REQUEST -----\n")
+            await self.pc.close()
+            self.pc = self.create_peer_connection()
+            offer = await self.pc.createOffer()
+            await self.pc.setLocalDescription(offer)
+            await websocket.send(json.dumps({
+                "type": "offer",
+                "sdp": self.pc.localDescription.sdp,
+                "sdpType": self.pc.localDescription.type
+            }))
+
+        elif data["type"] == "candidate":
+            candidate_dict = data["candidate"]
+            candidate = self.dict_to_candidate(candidate_dict)
+            if candidate.ip:
+                print(f"\n---- RECEIVED CANDIDATE -----\n")
+                await self.pc.addIceCandidate(candidate)
+                print(data)
 
     def dict_to_candidate(self, data):
         return RTCIceCandidate(

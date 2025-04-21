@@ -1,6 +1,6 @@
 from acoular import (
-    SoundDeviceSamplesGenerator, MicGeom, RectGrid,
-    BeamformerBase, PowerSpectra, SteeringVector, RFFT, FFTSpectra, BeamformerCapon
+    SoundDeviceSamplesGenerator, MicGeom,
+    BeamformerBase, PowerSpectra, SteeringVector
 )
 from utils.helper_service import HelperService
 import numpy as np
