@@ -17,11 +17,7 @@ class BeamformerMap:
         )
 
         self.steeringVector = SteeringVector(grid=self.mic_grid, mics=self.mic_array)
-
-
-    def get_current_map(self, threshold, frequency=1000, bandwidth=1):
-        try:
-            mch_generator = SoundDeviceSamplesGenerator(
+        self.mch_generator = SoundDeviceSamplesGenerator(
                 device=0,
                 num_channels=16,
                 sample_freq=48000,
@@ -29,7 +25,10 @@ class BeamformerMap:
                 numsamples=1024
             )
 
-            ps = PowerSpectra(source=mch_generator, block_size=1024, window='Hanning', cached=False)
+
+    def get_current_map(self, threshold, frequency=1000, bandwidth=1):
+        try:
+            ps = PowerSpectra(source=self.mch_generator, block_size=1024, window='Hanning', cached=False)
             bf = BeamformerBase(freq_data=ps, steer=self.steeringVector, cached=False)
 
             bf_map = bf.synthetic(frequency, bandwidth)

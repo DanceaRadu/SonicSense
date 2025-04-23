@@ -16,6 +16,7 @@ from webrtc_tracks import OpenCVVideoStreamTrack
 import asyncio
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate, RTCDataChannel
 import websockets
+from recorders.video_event_recorder import VideoEventRecorder
 
 class PiCamApp:
     def __init__(self, root):
@@ -63,6 +64,12 @@ class PiCamApp:
             exit()
 
         self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02)
+        self.event_recorder = VideoEventRecorder(
+            framerate=self.framerate,
+            resolution=(self.frame_width, self.frame_height),
+            backend_url=self.backend_url,
+            api_key=self.backend_api_key,
+        )
         self.frame_count = 0
         self.bf_map = None
 
@@ -174,6 +181,7 @@ class PiCamApp:
 
             if hasattr(self, 'webrtc_track'):
                 self.webrtc_track.frame = frame.copy()
+            self.event_recorder.update(frame.copy(), self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
 
         self.root.after(30, self.update_frame)
 
