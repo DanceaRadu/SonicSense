@@ -27,6 +27,7 @@ class PiCamApp:
         self.frame_width = 960
         self.frame_height = 540
         self.framerate = 15
+        self.tkinter_update_interval = round(1000 / self.framerate)
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
         self.backend_api_key = ""
@@ -43,7 +44,7 @@ class PiCamApp:
         pipeline_cmd = (
             f"libcamera-vid -t 0 --width 4608 --height 2592 --framerate {self.framerate} "
             f"--codec yuv420 --nopreview -o - | "
-            f"ffmpeg -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
+            f"ffmpeg -hide_banner -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
             f"-vf scale={self.frame_width}:{self.frame_height} "
             f"-f v4l2 /dev/video10"
         )
@@ -58,6 +59,7 @@ class PiCamApp:
         time.sleep(2)
 
         self.video_capture = cv2.VideoCapture("/dev/video10", cv2.CAP_V4L2)
+        self.video_capture.set(cv2.CAP_PROP_FPS, self.framerate)
         if not self.video_capture.isOpened():
             print("❌ Could not open /dev/video10")
             self.cleanup()
@@ -181,9 +183,9 @@ class PiCamApp:
 
             if hasattr(self, 'webrtc_track'):
                 self.webrtc_track.frame = frame.copy()
-            self.event_recorder.update(frame.copy(), self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
+            self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
 
-        self.root.after(30, self.update_frame)
+        self.root.after(self.tkinter_update_interval, self.update_frame)
 
     def open_settings_window(self):
         SettingsWindow(self.root, self.user_settings, settings_callback=self.set_user_settings)

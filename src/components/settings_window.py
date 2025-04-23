@@ -31,7 +31,7 @@ class SettingsWindow(ctk.CTkToplevel):
         threshold_label.pack(pady=(0, 0))
         combobox_threshold = ctk.CTkComboBox(
             self, 
-            values=["0.2", "0.5", "1.0", "2.0"],
+            values=["0.2", "0.5", "1.0", "2.0", "10.0"],
             command=self.set_threshold
         )
         combobox_threshold.set(initial_settings["sound_threshold"])
@@ -42,7 +42,7 @@ class SettingsWindow(ctk.CTkToplevel):
         event_threshold_label.pack(pady=(0, 0))
         combobox_event_threshold = ctk.CTkComboBox(
             self, 
-            values=["2.0", "3.0", "5.0", "7.0"],
+            values=["2.0", "3.0", "5.0", "7.0", "10.0"],
             command=self.set_event_sound_threshold
         )
         combobox_event_threshold.set(initial_settings["event_sound_threshold"])
