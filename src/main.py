@@ -26,8 +26,7 @@ class PiCamApp:
 
         self.frame_width = 960
         self.frame_height = 540
-        self.framerate = 15
-        self.tkinter_update_interval = round(1000 / self.framerate)
+        self.framerate = 7
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
         self.backend_api_key = ""
@@ -185,7 +184,7 @@ class PiCamApp:
                 self.webrtc_track.frame = frame.copy()
             self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
 
-        self.root.after(self.tkinter_update_interval, self.update_frame)
+        self.root.after(15, self.update_frame)
 
     def open_settings_window(self):
         SettingsWindow(self.root, self.user_settings, settings_callback=self.set_user_settings)
