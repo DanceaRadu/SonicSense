@@ -70,6 +70,7 @@ class PiCamApp:
             resolution=(self.frame_width, self.frame_height),
             backend_url=self.backend_url,
             api_key=self.backend_api_key,
+            sound_generator=self.beamformer.mch_generator,
         )
         self.frame_count = 0
         self.bf_map = None

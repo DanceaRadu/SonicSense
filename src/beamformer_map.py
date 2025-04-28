@@ -22,7 +22,7 @@ class BeamformerMap:
                 num_channels=16,
                 sample_freq=48000,
                 precision='int16',
-                numsamples=1024
+                numsamples=7000
             )
 
 
