@@ -9,7 +9,7 @@ import wave
 import subprocess
 
 class VideoEventRecorder:
-    def __init__(self, framerate, resolution, backend_url, api_key, sound_generator, buffer_seconds=10, post_seconds=10):
+    def __init__(self, framerate, resolution, backend_url, api_key, sound_generator, buffer_seconds=5, post_seconds=5):
         self.framerate = framerate
         self.frame_width, self.frame_height = resolution
         self.backend_url = backend_url
@@ -74,9 +74,13 @@ class VideoEventRecorder:
                     'ffmpeg', '-y', 
                     '-i', video_filename,
                     '-i', audio_filename,
-                    '-c:v', 'copy',
+                    '-c:v', 'libx264',
+                    '-preset', 'fast',
+                    '-crf', '23',
                     '-c:a', 'aac',
-                    '-strict', 'experimental',
+                    '-b:a', '192k',
+                    '-ac', '2', 
+                    '-movflags', 'faststart',
                     final_filename
                 ], check=True)
 
