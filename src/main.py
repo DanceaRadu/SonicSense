@@ -129,7 +129,7 @@ class PiCamApp:
         )
 
     def set_root_attributes(self):
-        self.root.title("SonicSense")
+        self.root.title("Sonic Sense")
         self.root.attributes('-fullscreen', True)
         self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         self.root.update_idletasks()
