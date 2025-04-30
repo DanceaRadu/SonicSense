@@ -17,7 +17,6 @@ class HelperService:
 
         horizontal_distance = z * horizontal_angle_tangent
         vertical_distance = z * vertical_angle_tangent
-        print(f"Horizontal distance: {horizontal_distance}, Vertical distance: {vertical_distance}")
 
         return RectGrid(
             x_min=-horizontal_distance, 

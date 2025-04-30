@@ -5,7 +5,7 @@ class SettingsWindow(ctk.CTkToplevel):
         super().__init__(parent)
 
         self.title("Settings")
-        self.geometry("250x330")
+        self.geometry("250x370")
         self.after(10, self.grab_set)
         self.settings_callback = settings_callback
         self.changed_settings = {

@@ -9,14 +9,14 @@ class BeamformerMap:
     def __init__(self, horizonatal_fov, vertical_fov, z,
                  mic_file='resources/array_16.xml', increment=0.01):
 
-        self.mic_array = MicGeom(file=mic_file)
+        mic_array = MicGeom(file=mic_file)
         self.mic_grid = HelperService.getRectGridBasedOnCameraFOV(
             horizontal_fov=horizonatal_fov, vertical_fov=vertical_fov,
             z=z,
             increment=increment
         )
 
-        self.steeringVector = SteeringVector(grid=self.mic_grid, mics=self.mic_array)
+        self.steeringVector = SteeringVector(grid=self.mic_grid, mics=mic_array)
         self.mch_generator = SoundDeviceSamplesGenerator(
                 device=0,
                 num_channels=16,
@@ -24,7 +24,6 @@ class BeamformerMap:
                 precision='int16',
                 numsamples=7000
             )
-
 
     def get_current_map(self, threshold, frequency=1000, bandwidth=1):
         try:

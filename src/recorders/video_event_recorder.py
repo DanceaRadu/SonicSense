@@ -38,7 +38,7 @@ class VideoEventRecorder:
 
         if self.recording:
             self.post_event_frames.append(frame.copy())
-            self.pre_event_audio.append(next(self.sound_generator.result(self.audio_samples_per_frame)).copy())
+            self.post_event_audio.append(next(self.sound_generator.result(self.audio_samples_per_frame)).copy())
             if len(self.post_event_frames) > self.post_event_frames_number:
                 threading.Thread(target=self._finalize_event, daemon=True).start()
                 
@@ -99,8 +99,8 @@ class VideoEventRecorder:
                     os.remove(final_filename)
 
                 self.recording = False
-                self.post_event_frames.clear()
-                self.post_event_audio.clear()
+                self.post_event_frames = []
+                self.post_event_audio = []
 
     def save_video(self, filename):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')

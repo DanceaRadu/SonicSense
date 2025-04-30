@@ -18,11 +18,9 @@ class OpenCVVideoStreamTrack(MediaStreamTrack):
         self.frame_interval = 1 / 30  # target ~30 fps
 
     async def recv(self):
-        if self.frame is None:
-            await asyncio.sleep(self.frame_interval)
-            return
-
         await asyncio.sleep(self.frame_interval)
+        if self.frame is None:
+            return
 
         frame = VideoFrame.from_ndarray(self.frame, format="bgr24")
 
