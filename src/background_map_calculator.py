@@ -13,6 +13,7 @@ class BackgroundMapCalculator:
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.bf_map = None
+        self.bf_map_unnormalized = None
         self.bf_color = None
         self.lock = threading.Lock()
         self.running = False
@@ -37,6 +38,7 @@ class BackgroundMapCalculator:
                     frequency=self.user_settings.get("frequency"),
                     bandwidth=self.user_settings.get("bandwidth")
                 )
+                unnormalized_bf_map = bf_map.copy()
                 bf_map = np.rot90(bf_map, k=-1)
                 bf_map = np.fliplr(bf_map)
                 bf_map = np.flipud(bf_map)
@@ -48,6 +50,7 @@ class BackgroundMapCalculator:
                 with self.lock:
                     self.bf_map = bf_map
                     self.bf_color = bf_color
+                    self.bf_map_unnormalized = unnormalized_bf_map
             except Exception as e:
                 print(f"[MapCalculator] Error: {e}")
 
@@ -56,6 +59,6 @@ class BackgroundMapCalculator:
     def get_latest_map(self):
         with self.lock:
             if self.bf_map is not None and self.bf_color is not None:
-                return self.bf_map.copy(), self.bf_color.copy()
+                return self.bf_map.copy(), self.bf_map_unnormalized.copy(), self.bf_color.copy()
             else:
-                return None, None
+                return None, None, None

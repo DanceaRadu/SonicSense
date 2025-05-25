@@ -1,19 +1,19 @@
 import customtkinter as ctk
 
 class SettingsWindow(ctk.CTkToplevel):
-    def __init__(self, parent, initial_settings, settings_callback):
+    def __init__(self, parent, settings):
         super().__init__(parent)
 
         self.title("Settings")
         self.geometry("250x370")
         self.after(10, self.grab_set)
-        self.settings_callback = settings_callback
         self.changed_settings = {
-            "frequency": initial_settings["frequency"],
-            "sound_threshold": initial_settings["sound_threshold"],
-            "bandwidth": initial_settings["bandwidth"],
-            "event_sound_threshold": initial_settings["event_sound_threshold"]
+            "frequency": settings.get("frequency"),
+            "sound_threshold": settings.get("sound_threshold"),
+            "bandwidth": settings.get("bandwidth"),
+            "event_sound_threshold": settings.get("event_sound_threshold")
         }
+        self.settings = settings
 
         # Frequency
         freq_label = ctk.CTkLabel(self, text="Frequency (Hz)")
@@ -23,7 +23,7 @@ class SettingsWindow(ctk.CTkToplevel):
             values=["250", "500", "1000", "2000", "4000"],
             command=self.set_frequency
         )
-        combobox_frequency.set(initial_settings["frequency"])
+        combobox_frequency.set(self.changed_settings["frequency"])
         combobox_frequency.pack(pady=10)
 
         # Sound threshold
@@ -34,7 +34,7 @@ class SettingsWindow(ctk.CTkToplevel):
             values=["0.2", "0.5", "1.0", "2.0", "10.0"],
             command=self.set_threshold
         )
-        combobox_threshold.set(initial_settings["sound_threshold"])
+        combobox_threshold.set(self.changed_settings["sound_threshold"])
         combobox_threshold.pack(pady=10)
 
         # Event sound threshold
@@ -45,7 +45,7 @@ class SettingsWindow(ctk.CTkToplevel):
             values=["2.0", "3.0", "5.0", "7.0", "10.0"],
             command=self.set_event_sound_threshold
         )
-        combobox_event_threshold.set(initial_settings["event_sound_threshold"])
+        combobox_event_threshold.set(self.changed_settings["event_sound_threshold"])
         combobox_event_threshold.pack(pady=10)
 
         # Bandwith channels
@@ -56,7 +56,7 @@ class SettingsWindow(ctk.CTkToplevel):
             values=["1", "2", "3"],
             command=self.set_bandwidth
         )
-        combobox_bandwidth.set(initial_settings["bandwidth"])
+        combobox_bandwidth.set(self.changed_settings["bandwidth"])
         combobox_bandwidth.pack(pady=10)
 
         close_btn = ctk.CTkButton(self, text="Save", command=self.save)
@@ -75,5 +75,5 @@ class SettingsWindow(ctk.CTkToplevel):
         self.changed_settings["event_sound_threshold"] = float(value)
 
     def save(self):
-        self.settings_callback(self.changed_settings)
+        self.settings.update(self.changed_settings)
         self.destroy()
