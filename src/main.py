@@ -63,11 +63,6 @@ class PiCamApp:
             self.cleanup()
             exit()
 
-        self.latest_frame = None
-        self.ret = False
-        self.capture_thread = threading.Thread(target=self.camera_loop, daemon=True)
-        self.capture_thread.start()
-
         self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02)
         self.event_recorder = VideoEventRecorder(
             framerate=self.framerate,
@@ -149,8 +144,9 @@ class PiCamApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_frame(self):
-        if self.ret and self.latest_frame is not None:
-            frame = self.latest_frame
+        ret, frame = self.video_capture.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             bf_map, bf_color = self.background_map_calculator.get_latest_map()
             if bf_map is not None and bf_color is not None:
@@ -158,16 +154,16 @@ class PiCamApp:
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
 
             image = Image.fromarray(frame)
-            ctk_image = ctk.CTkImage(light_image=image, size=(1280, 720))
+            ctk_image = ctk.CTkImage(light_image=image, size=(640, 360))
 
             self.video_label.configure(image=ctk_image, text="")
             self.video_label.image = ctk_image
 
             if hasattr(self, 'webrtc_track'):
                 self.webrtc_track.frame = frame.copy()
-            self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
+            # self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
 
-        self.root.after(15, self.update_frame)
+        self.root.after(60, self.update_frame)
 
     def open_settings_window(self):
         SettingsWindow(self.root, self.user_settings, settings_callback=self.set_user_settings)
@@ -261,16 +257,6 @@ class PiCamApp:
         pc = RTCPeerConnection(configuration=config)
         pc.addTrack(self.webrtc_track)
         return pc
-
-    def camera_loop(self):
-        while True:
-            if self.video_capture.isOpened():
-                ret, frame = self.video_capture.read()
-                if ret:
-                    self.ret = True
-                    frame = cv2.resize(frame, (self.frame_width, self.frame_height))
-                    self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            time.sleep(1 / self.framerate)
 
 if __name__ == "__main__":
     root = ctk.CTk()
