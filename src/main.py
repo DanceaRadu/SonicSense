@@ -7,8 +7,6 @@ import os
 import signal
 import customtkinter as ctk
 from PIL import Image
-import numpy as np
-from matplotlib import cm
 import json
 from components.settings_window import SettingsWindow
 import threading
@@ -64,6 +62,11 @@ class PiCamApp:
             print("❌ Could not open /dev/video10")
             self.cleanup()
             exit()
+
+        self.latest_frame = None
+        self.ret = False
+        self.capture_thread = threading.Thread(target=self.camera_loop, daemon=True)
+        self.capture_thread.start()
 
         self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02)
         self.event_recorder = VideoEventRecorder(
@@ -146,34 +149,23 @@ class PiCamApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_frame(self):
-        ret, frame = self.video_capture.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if self.ret and self.latest_frame is not None:
+            frame = self.latest_frame
 
             bf_map, bf_color = self.background_map_calculator.get_latest_map()
-            if(bf_map is not None and bf_color is not None):
+            if bf_map is not None and bf_color is not None:
                 self.bf_map = bf_map
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
 
-            window_width = self.root.winfo_width()
-            if window_width <= 1:
-                window_width = 800 
+            image = Image.fromarray(frame)
+            ctk_image = ctk.CTkImage(light_image=image, size=(1280, 720))
 
-            orig_height, orig_width, _ = frame.shape
-
-            aspect_ratio = orig_height / orig_width
-            new_width = window_width
-            new_height = int(window_width * aspect_ratio)
-
-            resized_frame = cv2.resize(frame, (new_width-2, new_height-2))
-            image = Image.fromarray(resized_frame)
-            ctk_image = ctk.CTkImage(light_image=image, size=(new_width, new_height))
             self.video_label.configure(image=ctk_image, text="")
-            self.video_label.image = ctk_image 
+            self.video_label.image = ctk_image
 
             if hasattr(self, 'webrtc_track'):
                 self.webrtc_track.frame = frame.copy()
-            # self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
+            self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
 
         self.root.after(15, self.update_frame)
 
@@ -269,6 +261,16 @@ class PiCamApp:
         pc = RTCPeerConnection(configuration=config)
         pc.addTrack(self.webrtc_track)
         return pc
+
+    def camera_loop(self):
+        while True:
+            if self.video_capture.isOpened():
+                ret, frame = self.video_capture.read()
+                if ret:
+                    self.ret = True
+                    frame = cv2.resize(frame, (self.frame_width, self.frame_height))
+                    self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            time.sleep(1 / self.framerate)
 
 if __name__ == "__main__":
     root = ctk.CTk()

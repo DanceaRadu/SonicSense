@@ -22,7 +22,7 @@ class OpenCVVideoStreamTrack(MediaStreamTrack):
         if self.frame is None:
             return
 
-        frame = VideoFrame.from_ndarray(self.frame, format="bgr24")
+        frame = VideoFrame.from_ndarray(self.frame, format="rgb24")
 
         self.timestamp += int(self.frame_interval * 90000)
         frame.pts = self.timestamp
