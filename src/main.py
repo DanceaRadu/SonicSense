@@ -17,6 +17,7 @@ import asyncio
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate, RTCDataChannel
 import websockets
 from recorders.video_event_recorder import VideoEventRecorder
+from background_map_calculator import BackgroundMapCalculator
 
 class PiCamApp:
     def __init__(self, root):
@@ -72,8 +73,15 @@ class PiCamApp:
             api_key=self.backend_api_key,
             sound_generator=self.beamformer.mch_generator,
         )
-        self.frame_count = 0
         self.bf_map = None
+        self.background_map_calculator = BackgroundMapCalculator(
+            beamformer=self.beamformer,
+            user_settings=self.user_settings,
+            frame_width=self.frame_width,
+            frame_height=self.frame_height,
+            update_interval=0.5
+        )
+        self.background_map_calculator.start()
 
         self.webrtc_track = OpenCVVideoStreamTrack(self)
         self.update_frame()
@@ -142,27 +150,9 @@ class PiCamApp:
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            # Update beamformer every N frames (to reduce load)
-            if self.frame_count % 3 == 0:
-                self.bf_map = self.beamformer.get_current_map(
-                    self.user_settings.get("sound_threshold"), 
-                    frequency=self.user_settings.get("frequency"), 
-                    bandwidth=self.user_settings.get("bandwidth")
-                )
-
-            self.frame_count += 1
-
-            if self.bf_map is not None:
-                # Normalize and apply colormap
-                bf_map = self.bf_map
-                bf_map = np.rot90(bf_map, k=-1)
-                bf_map = np.fliplr(bf_map)
-                bf_map = np.flipud(bf_map)
-                bf_map = (bf_map - bf_map.min()) / (bf_map.max() - bf_map.min() + 1e-6)
-                bf_map = cv2.resize(bf_map, (frame.shape[1], frame.shape[0]))
-                bf_color = cm.jet(bf_map)[:, :, :3]
-                bf_color = (bf_color * 255).astype(np.uint8)
-
+            bf_map, bf_color = self.background_map_calculator.get_latest_map()
+            if(bf_map is not None and bf_color is not None):
+                self.bf_map = bf_map
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
 
             window_width = self.root.winfo_width()
@@ -196,6 +186,7 @@ class PiCamApp:
 
     def cleanup(self):
         print("Cleaning up...")
+        self.background_map_calculator.stop()
         if self.video_capture:
             self.video_capture.release()
         os.killpg(os.getpgid(self.pipeline_process.pid), signal.SIGTERM)
