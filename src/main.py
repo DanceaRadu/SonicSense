@@ -16,19 +16,20 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 import websockets
 from recorders.video_event_recorder import VideoEventRecorder
 from background_map_calculator import BackgroundMapCalculator
+from user_settings import UserSettings
+import numpy as np
 
 class PiCamApp:
     def __init__(self, root):
         self.root = root
-        self.settings_path = "user_settings.json"
-        self.load_user_settings_from_file()
+        self.settings = UserSettings("user_settings.json")
 
         self.frame_width = 960
         self.frame_height = 540
         self.framerate = 15
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
-        self.backend_api_key = ""
+        self.backend_api_key = "FgYynhzMtUZHCPCBdDWVNN5nVVKZ9Ht8HRJangu8C2Ugrkc3TSaru6ScjgsVTH6h"
         self.set_root_attributes()
 
         HelperService.ensure_v4l2loopback_device_exists()
@@ -71,10 +72,9 @@ class PiCamApp:
             api_key=self.backend_api_key,
             sound_generator=self.beamformer.mch_generator,
         )
-        self.bf_map = None
         self.background_map_calculator = BackgroundMapCalculator(
             beamformer=self.beamformer,
-            user_settings=self.user_settings,
+            user_settings=self.settings,
             frame_width=self.frame_width,
             frame_height=self.frame_height,
             update_interval=0.1
@@ -84,40 +84,6 @@ class PiCamApp:
         self.webrtc_track = OpenCVVideoStreamTrack(self)
         self.update_frame()
         threading.Thread(target=self.start_webrtc_loop, daemon=True).start()
-
-    def load_user_settings_from_file(self):
-        default_config = {
-            "sound_threshold": 1.0,
-            "frequency": 1000,
-            "bandwidth": 1,
-            "event_sound_threshold": 2.0,
-        }
-
-        try:
-            if os.path.exists(self.settings_path):
-                with open(self.settings_path, "r") as f:
-                    user_config = json.load(f)
-            else:
-                user_config = {}
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading user settings: {e}")
-            user_config = {}
-
-        merged_config = {
-            "sound_threshold": user_config.get("sound_threshold", default_config["sound_threshold"]),
-            "frequency": user_config.get("frequency", default_config["frequency"]),
-            "bandwidth": user_config.get("bandwidth", default_config["bandwidth"]),
-            "event_sound_threshold": user_config.get("event_sound_threshold", default_config["event_sound_threshold"]),
-        }
-        self.set_user_settings(merged_config)
-
-    def set_user_settings(self, user_settings):
-        self.user_settings = user_settings
-        try:
-            with open(self.settings_path, "w") as f:
-                json.dump(user_settings, f, indent=4)
-        except IOError as e:
-            print(f"Failed to save user settings: {e}")
 
     def create_settings_button(self):
         gear_img = Image.open("resources/icons/settings_icon.png")
@@ -148,9 +114,8 @@ class PiCamApp:
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            bf_map, bf_color = self.background_map_calculator.get_latest_map()
+            bf_map, bf_map_unnormalized, bf_color = self.background_map_calculator.get_latest_map()
             if bf_map is not None and bf_color is not None:
-                self.bf_map = bf_map
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
 
             image = Image.fromarray(frame)
@@ -161,12 +126,12 @@ class PiCamApp:
 
             if hasattr(self, 'webrtc_track'):
                 self.webrtc_track.frame = frame.copy()
-            # self.event_recorder.update(frame, self.bf_map, event_threshold=self.user_settings.get("event_sound_threshold"))
+            self.event_recorder.update(frame, bf_map_unnormalized, event_threshold=self.settings.get("event_sound_threshold"))
 
         self.root.after(60, self.update_frame)
 
     def open_settings_window(self):
-        SettingsWindow(self.root, self.user_settings, settings_callback=self.set_user_settings)
+        SettingsWindow(self.root, self.settings)
 
     def on_close(self):
         self.cleanup()
