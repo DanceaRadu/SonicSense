@@ -29,7 +29,7 @@ class PiCamApp:
         self.framerate = 15
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
-        self.backend_api_key = "FgYynhzMtUZHCPCBdDWVNN5nVVKZ9Ht8HRJangu8C2Ugrkc3TSaru6ScjgsVTH6h"
+        self.backend_api_key = ""
         self.set_root_attributes()
 
         HelperService.ensure_v4l2loopback_device_exists()
