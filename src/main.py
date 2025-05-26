@@ -66,7 +66,6 @@ class PiCamApp:
 
         self.beamformer = BeamformerMap(horizonatal_fov=66, vertical_fov=41, z=0.5, increment=0.02)
         self.event_recorder = VideoEventRecorder(
-            framerate=self.framerate,
             resolution=(self.frame_width, self.frame_height),
             backend_url=self.backend_url,
             api_key=self.backend_api_key,
