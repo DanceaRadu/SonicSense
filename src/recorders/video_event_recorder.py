@@ -52,7 +52,7 @@ class VideoEventRecorder:
     def _audio_loop(self):
         while not self.stop_audio_event.is_set():
             try:
-                num_samples = 4800
+                num_samples = 1000
                 samples = next(self.sound_generator.result(num_samples)).copy()
 
                 with self.lock:
@@ -127,7 +127,6 @@ class VideoEventRecorder:
                     os.remove(final_filename)
 
                 self.post_start_time = None
-                self.last_audio_time = None
                 self.post_event_frames = []
                 self.post_event_audio = []
                 self.pre_event_frames.clear()
