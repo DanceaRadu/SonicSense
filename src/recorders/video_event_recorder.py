@@ -29,14 +29,16 @@ class VideoEventRecorder:
         self.lock = threading.Lock()
         self.recording = False
         self.post_start_time = None
-        self.last_audio_time = None
+
+        self.stop_audio_event = threading.Event()
+        self.audio_thread = threading.Thread(target=self._audio_loop, daemon=True)
+        self.audio_thread.start()
 
     def update(self, frame, bf_map, event_threshold=2.0):
 
         now = time.time()
         if not self.recording:
             self.pre_event_frames.append((now, frame.copy()))
-            self.store_audio(now, self.pre_event_audio)
             self.prune_old_entries(now)
 
         if not self.recording and self.detect_sound_event(bf_map, event_threshold):
@@ -44,17 +46,23 @@ class VideoEventRecorder:
 
         if self.recording:
             self.post_event_frames.append((now, frame.copy()))
-            self.store_audio(now, self.post_event_audio)
             if self.post_start_time and (now - self.post_start_time > self.post_seconds): 
                 threading.Thread(target=self._finalize_event, daemon=True).start()
+
+    def _audio_loop(self):
+        while not self.stop_audio_event.is_set():
+            try:
+                num_samples = 4800
+                samples = next(self.sound_generator.result(num_samples)).copy()
+
+                with self.lock:
+                    if self.recording:
+                        self.post_event_audio.append(samples)
+                    else:
+                        self.pre_event_audio.append(samples)
+            except Exception as e:
+                print(f"Error in audio loop: {e}")
       
-    def store_audio(self, now, target_audio_deque):
-        if self.last_audio_time is not None:
-            dt = now - self.last_audio_time
-            num_samples = int(dt * self.audio_frequency)
-            target_audio_deque.append(next(self.sound_generator.result(1)).copy())
-        self.last_audio_time = now
-    
     def prune_old_entries(self, now):
         cutoff = now - self.buffer_seconds
         while self.pre_event_frames and self.pre_event_frames[0][0] < cutoff:
@@ -78,6 +86,8 @@ class VideoEventRecorder:
         with self.lock:
             if not self.recording:
                 return
+            self.recording = False
+            self.stop_audio_event.set()
 
             timestamp = int(time.time())
             video_filename = f"temp_video_{timestamp}.mp4"
@@ -116,19 +126,24 @@ class VideoEventRecorder:
                 if os.path.exists(final_filename):
                     os.remove(final_filename)
 
-                self.recording = False
                 self.post_start_time = None
                 self.last_audio_time = None
                 self.post_event_frames = []
                 self.post_event_audio = []
+                self.pre_event_frames.clear()
+                self.pre_event_audio.clear()
+
+                self.stop_audio_event = threading.Event()
+                self.audio_thread = threading.Thread(target=self._audio_loop, daemon=True)
+                self.audio_thread.start()
 
     def save_video(self, filename):
         all_frames = list(self.pre_event_frames) + self.post_event_frames
         if not all_frames:
             print("No frames to save.")
             return
+        avg_fps = self.calculate_average_fps(all_frames)
 
-        # Create absolute temp folder path relative to current script
         script_dir = os.path.dirname(os.path.abspath(__file__))
         folder = os.path.join(script_dir, f"temp_frames_{uuid.uuid4().hex}")
         os.makedirs(folder, exist_ok=True)
@@ -154,7 +169,7 @@ class VideoEventRecorder:
         try:
             subprocess.run([
                 'ffmpeg', '-y',
-                '-r', '5',
+                '-r', str(round(avg_fps, 3)),
                 '-f', 'concat', '-safe', '0',
                 '-i', input_txt_path,
                 '-fps_mode', 'vfr',
@@ -190,3 +205,15 @@ class VideoEventRecorder:
                 print(f"❌ Upload failed: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"Exception during upload: {e}")
+
+    def calculate_average_fps(self, frames):
+        timestamps = [ts for ts, _ in frames]
+        if len(timestamps) < 2:
+            return 5.0
+
+        durations = [t2 - t1 for t1, t2 in zip(timestamps[:-1], timestamps[1:])]
+        avg_duration = sum(durations) / len(durations)
+        return 1.0 / avg_duration if avg_duration > 0 else 5.0
+    
+    def stop(self):
+        self.stop_audio_event.set()
