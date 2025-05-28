@@ -40,7 +40,6 @@ class BackgroundMapCalculator:
                 )
                 unnormalized_bf_map = bf_map.copy()
                 bf_map = np.rot90(bf_map, k=-1)
-                bf_map = np.fliplr(bf_map)
                 bf_map = np.flipud(bf_map)
                 bf_map = (bf_map - bf_map.min()) / (bf_map.max() - bf_map.min() + 1e-6)
                 bf_map = cv2.resize(bf_map, (self.frame_width, self.frame_height))
