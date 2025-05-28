@@ -42,6 +42,12 @@ class BackgroundMapCalculator:
                 bf_map = np.rot90(bf_map, k=-1)
                 bf_map = np.flipud(bf_map)
                 bf_map = (bf_map - bf_map.min()) / (bf_map.max() - bf_map.min() + 1e-6)
+
+                gamma = 20.0
+                bf_map = np.power(bf_map, gamma)
+                threshold = 0.4
+                bf_map[bf_map < threshold] = 0
+
                 bf_map = cv2.resize(bf_map, (self.frame_width, self.frame_height))
                 bf_color = cm.jet(bf_map)[:, :, :3]
                 bf_color = (bf_color * 255).astype(np.uint8)
