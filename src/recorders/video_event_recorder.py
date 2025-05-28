@@ -147,7 +147,8 @@ class VideoEventRecorder:
         with open(input_txt_path, 'w') as f:
             for i, (timestamp, frame) in enumerate(all_frames):
                 frame_path = os.path.join(folder, f"frame_{i:04d}.png")
-                success = cv2.imwrite(frame_path, frame)
+                bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                success = cv2.imwrite(frame_path, bgr_frame)
                 if not success:
                     print(f"Failed to write frame to {frame_path}")
                     continue
