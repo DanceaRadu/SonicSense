@@ -18,8 +18,8 @@ class VideoEventRecorder:
         self.buffer_seconds = buffer_seconds
         self.post_seconds = post_seconds
 
-        self.audio_samples_for_buffer = int(sound_generator.sample_freq * self.buffer_seconds)
         self.audio_frequency = sound_generator.sample_freq
+        self.audio_samples_for_buffer = int(self.audio_frequency * self.buffer_seconds)
 
         self.pre_event_frames = collections.deque()
         self.pre_event_audio = collections.deque(maxlen=self.audio_samples_for_buffer)
@@ -79,8 +79,8 @@ class VideoEventRecorder:
                 return
             self.recording = True
             self.post_start_time = time.time()
-            self.post_event_frames = []
-            self.post_event_audio = []
+            self.post_event_frames.clear()
+            self.post_event_audio.clear()
 
     def _finalize_event(self):
         with self.lock:
@@ -127,8 +127,8 @@ class VideoEventRecorder:
                     os.remove(final_filename)
 
                 self.post_start_time = None
-                self.post_event_frames = []
-                self.post_event_audio = []
+                self.post_event_frames.clear()
+                self.post_event_audio.clear()
                 self.pre_event_frames.clear()
                 self.pre_event_audio.clear()
 
@@ -188,7 +188,7 @@ class VideoEventRecorder:
         with wave.open(filename, 'wb') as wav_file:
             wav_file.setnchannels(self.sound_generator.num_channels)
             wav_file.setsampwidth(2)
-            wav_file.setframerate(self.sound_generator.sample_freq)
+            wav_file.setframerate(self.audio_frequency)
             wav_file.writeframes(combined_audio.tobytes())
 
     def upload_video(self, filepath):
