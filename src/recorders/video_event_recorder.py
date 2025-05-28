@@ -19,7 +19,7 @@ class VideoEventRecorder:
         self.post_seconds = post_seconds
 
         self.audio_frequency = sound_generator.sample_freq
-        self.audio_samples_for_buffer = int(self.audio_frequency * self.buffer_seconds)
+        self.audio_samples_for_buffer = int(47 * self.buffer_seconds)
 
         self.pre_event_frames = collections.deque()
         self.pre_event_audio = collections.deque(maxlen=self.audio_samples_for_buffer)
@@ -51,17 +51,13 @@ class VideoEventRecorder:
 
     def _audio_loop(self):
         while not self.stop_audio_event.is_set():
-            try:
-                num_samples = 1000
-                samples = next(self.sound_generator.result(num_samples)).copy()
-
-                with self.lock:
-                    if self.recording:
-                        self.post_event_audio.append(samples)
-                    else:
-                        self.pre_event_audio.append(samples)
-            except Exception as e:
-                print(f"Error in audio loop: {e}")
+            samples = next(self.sound_generator.result(1024)).copy()
+            with self.lock:
+                if self.recording:
+                    self.post_event_audio.append(samples)
+                else:
+                    self.pre_event_audio.append(samples)
+            time.sleep(0.02)
       
     def prune_old_entries(self, now):
         cutoff = now - self.buffer_seconds
@@ -99,7 +95,7 @@ class VideoEventRecorder:
 
             try:
                 subprocess.run([
-                    'ffmpeg', '-y', 
+                    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
                     '-i', video_filename,
                     '-i', audio_filename,
                     '-c:v', 'libx264',
@@ -167,7 +163,7 @@ class VideoEventRecorder:
 
         try:
             subprocess.run([
-                'ffmpeg', '-y',
+                'ffmpeg', '-hide_banner', '-loglevel', 'warning', '-y',
                 '-r', str(round(avg_fps, 3)),
                 '-f', 'concat', '-safe', '0',
                 '-i', input_txt_path,

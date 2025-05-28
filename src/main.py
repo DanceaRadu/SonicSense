@@ -43,7 +43,7 @@ class PiCamApp:
         pipeline_cmd = (
             f"libcamera-vid -t 0 --width 4608 --height 2592 --framerate {self.framerate} "
             f"--codec yuv420 --nopreview -o - | "
-            f"ffmpeg -hide_banner -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
+            f"ffmpeg -hide_banner -loglevel warning -f rawvideo -pix_fmt yuv420p -s 4608x2592 -i - "
             f"-vf scale={self.frame_width}:{self.frame_height} "
             f"-f v4l2 /dev/video10"
         )
@@ -51,7 +51,8 @@ class PiCamApp:
         self.pipeline_process = subprocess.Popen(
             pipeline_cmd,
             shell=True,
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
+            stdout=subprocess.DEVNULL
         )
 
         # Camera warm-up time

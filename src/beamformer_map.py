@@ -1,9 +1,10 @@
 from acoular import (
-    SoundDeviceSamplesGenerator, MicGeom,
+    MicGeom,
     BeamformerBase, PowerSpectra, SteeringVector
 )
 from utils.helper_service import HelperService
 import numpy as np
+from beamforming.shared_buffer_samples_generator import SharedBufferSamplesGenerator
 
 class BeamformerMap:
     def __init__(self, horizonatal_fov, vertical_fov, z,
@@ -17,13 +18,15 @@ class BeamformerMap:
         )
 
         self.steeringVector = SteeringVector(grid=self.mic_grid, mics=mic_array)
-        self.mch_generator = SoundDeviceSamplesGenerator(
+        self.mch_generator = SharedBufferSamplesGenerator(
                 device=0,
                 num_channels=16,
                 sample_freq=48000,
                 precision='int16',
-                numsamples=7000
-            )
+                numsamples=7000,
+                buffer_blocks=100,
+                buffer_block_size=1024
+        )
 
     def get_current_map(self, threshold, frequency=1000, bandwidth=1):
         try:
