@@ -29,6 +29,8 @@ class VideoEventRecorder:
         self.lock = threading.Lock()
         self.recording = False
         self.post_start_time = None
+        self.last_event_time = None
+        self.processing_event = False
 
         self.stop_audio_event = threading.Event()
         self.audio_thread = threading.Thread(target=self._audio_loop, daemon=True)
@@ -42,6 +44,7 @@ class VideoEventRecorder:
             self.prune_old_entries(now)
 
         if not self.recording and self.detect_sound_event(bf_map, event_threshold):
+            self.last_event_time = time.time()
             self.start_post_event_capture()
 
         if self.recording:
@@ -67,7 +70,9 @@ class VideoEventRecorder:
     def detect_sound_event(self, bf_map, event_threshold=2.0):
         if bf_map is None:
             return False
-        return np.max(bf_map) > event_threshold
+        if self.processing_event:
+            return False
+        return np.max(bf_map) > event_threshold and (self.last_event_time is None or time.time() - self.last_event_time > 10.0)
 
     def start_post_event_capture(self):
         with self.lock:
@@ -83,6 +88,7 @@ class VideoEventRecorder:
             if not self.recording:
                 return
             self.recording = False
+            self.processing_event = True
             self.stop_audio_event.set()
 
             timestamp = int(time.time())
@@ -131,6 +137,7 @@ class VideoEventRecorder:
                 self.stop_audio_event = threading.Event()
                 self.audio_thread = threading.Thread(target=self._audio_loop, daemon=True)
                 self.audio_thread.start()
+                self.processing_event = False
 
     def save_video(self, filename):
         all_frames = list(self.pre_event_frames) + self.post_event_frames
