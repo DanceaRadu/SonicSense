@@ -10,7 +10,7 @@ import subprocess
 import uuid
 
 class VideoEventRecorder:
-    def __init__(self, resolution, backend_url, api_key, sound_generator, buffer_seconds=5, post_seconds=5):
+    def __init__(self, resolution, backend_url, api_key, sound_generator, buffer_seconds=2, post_seconds=10):
         self.frame_width, self.frame_height = resolution
         self.backend_url = backend_url
         self.api_key = api_key

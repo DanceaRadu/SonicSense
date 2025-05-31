@@ -12,12 +12,11 @@ from components.settings_window import SettingsWindow
 import threading
 from webrtc_tracks import OpenCVVideoStreamTrack
 import asyncio
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate, RTCDataChannel
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer, RTCIceCandidate
 import websockets
 from recorders.video_event_recorder import VideoEventRecorder
 from background_map_calculator import BackgroundMapCalculator
 from user_settings import UserSettings
-import numpy as np
 
 class PiCamApp:
     def __init__(self, root):
@@ -26,6 +25,8 @@ class PiCamApp:
 
         self.frame_width = 960
         self.frame_height = 540
+        self.displayed_frame_width = 640
+        self.displayed_frame_height = 360
         self.framerate = 15
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
@@ -39,6 +40,15 @@ class PiCamApp:
         self.video_label.pack(fill=ctk.BOTH, expand=True)
         self.settings_button = self.create_settings_button()
         self.settings_button.place(relx=0.98, rely=0.95, anchor="se")
+
+        self.update_count = 1
+
+        self.max_value_label = ctk.CTkLabel(self.root, text="Max: N/A", font=ctk.CTkFont(size=20))
+        self.max_value_label.place(relx=0.96, rely=0.02, anchor="ne")
+
+        self.fps_label = ctk.CTkLabel(self.root, text=f"FPS: N/A", font=ctk.CTkFont(size=20))
+        self.fps_label.place(relx=0.96, rely=0.04, anchor="ne")
+        self.fps_duration = 0
 
         pipeline_cmd = (
             f"libcamera-vid -t 0 --width 4608 --height 2592 --framerate {self.framerate} "
@@ -110,6 +120,7 @@ class PiCamApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_frame(self):
+        start_time = time.time()
         ret, frame = self.video_capture.read()
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -117,9 +128,11 @@ class PiCamApp:
             bf_map, bf_map_unnormalized, bf_color = self.background_map_calculator.get_latest_map()
             if bf_map is not None and bf_color is not None:
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
+                if(self.update_count % 3 == 0):
+                    self.update_max_value_label(bf_map_unnormalized)
 
             image = Image.fromarray(frame)
-            ctk_image = ctk.CTkImage(light_image=image, size=(640, 360))
+            ctk_image = ctk.CTkImage(light_image=image, size=(self.displayed_frame_width, self.displayed_frame_height))
 
             self.video_label.configure(image=ctk_image, text="")
             self.video_label.image = ctk_image
@@ -128,10 +141,25 @@ class PiCamApp:
                 self.webrtc_track.frame = frame.copy()
             self.event_recorder.update(frame, bf_map_unnormalized, event_threshold=self.settings.get("event_sound_threshold"))
 
+            self.fps_duration += (time.time() - start_time) + 0.06
+            if self.update_count % 10 == 0:
+                fps = 10 / self.fps_duration
+                self.fps_duration = 0
+                self.fps_label.configure(text=f"FPS: {fps:.2f}")
+            
+        self.update_count += 1
         self.root.after(60, self.update_frame)
 
     def open_settings_window(self):
         SettingsWindow(self.root, self.settings)
+
+    def update_max_value_label(self, bf_map_unnormalized):
+        max_loc = cv2.minMaxLoc(bf_map_unnormalized)[3]
+        max_val = bf_map_unnormalized[max_loc[1], max_loc[0]]
+        map_h, map_w = bf_map_unnormalized.shape
+        scaled_x = int(max_loc[0] * self.displayed_frame_width / map_w)
+        scaled_y = int(max_loc[1] * self.displayed_frame_height / map_h)
+        self.max_value_label.configure(text=f"Max: {max_val:.2f} @ ({scaled_x}, {scaled_y})")
 
     def on_close(self):
         self.cleanup()
