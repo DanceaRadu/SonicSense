@@ -25,8 +25,8 @@ class SonicSenseApp:
 
         self.frame_width = 960
         self.frame_height = 540
-        self.displayed_frame_width = 640
-        self.displayed_frame_height = 360
+        self.displayed_frame_width = 960
+        self.displayed_frame_height = 540
         self.framerate = 15
         self.signaling_url = "wss://sonic-sense-signaling.gonemesis.org"
         self.backend_url = "https://sonic-sense-backend.gonemesis.org"
@@ -38,6 +38,7 @@ class SonicSenseApp:
         # GUI elements
         self.video_label = ctk.CTkLabel(root, text="")
         self.video_label.pack(fill=ctk.BOTH, expand=True)
+        self.settings_window = None
         self.settings_button = self.create_settings_button()
         self.settings_button.place(relx=0.98, rely=0.95, anchor="se")
 
@@ -97,7 +98,7 @@ class SonicSenseApp:
 
     def create_settings_button(self):
         gear_img = Image.open("resources/icons/settings_icon.png")
-        gear_img = gear_img.resize((40, 40), Image.Resampling.LANCZOS)
+        gear_img = gear_img.resize((60, 60), Image.Resampling.LANCZOS)
         gear_photo = ctk.CTkImage(light_image=gear_img, dark_image=gear_img, size=(40, 40))
 
         return ctk.CTkButton(
@@ -105,9 +106,9 @@ class SonicSenseApp:
             image=gear_photo,
             command=self.open_settings_window,
             text="",
-            width=40,
-            height=40,
-            corner_radius=0
+            width=60,
+            height=60,
+            corner_radius=5
         )
 
     def set_root_attributes(self):
@@ -151,7 +152,8 @@ class SonicSenseApp:
         self.root.after(60, self.update_frame)
 
     def open_settings_window(self):
-        SettingsWindow(self.root, self.settings)
+        self.settings_window = SettingsWindow(self.root, self.settings)
+        self.settings_window.after(300, lambda: self.settings_window.wm_attributes('-fullscreen', 'true'))
 
     def update_max_value_label(self, bf_map_unnormalized):
         max_loc = cv2.minMaxLoc(bf_map_unnormalized)[3]
