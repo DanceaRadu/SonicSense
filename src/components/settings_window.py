@@ -53,7 +53,7 @@ class SettingsWindow(ctk.CTkToplevel):
         bandwidth_label.pack(pady=(0, 0))
         combobox_bandwidth = ctk.CTkComboBox(
             self, 
-            values=["1", "2", "3"],
+            values=["0", "1", "2", "3"],
             command=self.set_bandwidth
         )
         combobox_bandwidth.set(self.changed_settings["bandwidth"])

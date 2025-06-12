@@ -18,7 +18,7 @@ from recorders.video_event_recorder import VideoEventRecorder
 from background_map_calculator import BackgroundMapCalculator
 from user_settings import UserSettings
 
-class PiCamApp:
+class SonicSenseApp:
     def __init__(self, root):
         self.root = root
         self.settings = UserSettings("user_settings.json")
@@ -47,7 +47,7 @@ class PiCamApp:
         self.max_value_label.place(relx=0.96, rely=0.02, anchor="ne")
 
         self.fps_label = ctk.CTkLabel(self.root, text=f"FPS: N/A", font=ctk.CTkFont(size=20))
-        self.fps_label.place(relx=0.96, rely=0.04, anchor="ne")
+        self.fps_label.place(relx=0.96, rely=0.06, anchor="ne")
         self.fps_duration = 0
 
         pipeline_cmd = (
@@ -112,7 +112,7 @@ class PiCamApp:
 
     def set_root_attributes(self):
         self.root.title("Sonic Sense")
-        self.root.attributes('-fullscreen', True)
+        self.root.after(1000, lambda: self.root.wm_attributes('-fullscreen', 'true'))
         self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         self.root.update_idletasks()
         self.root.bind('<Alt-F4>', self.on_close)
@@ -253,5 +253,5 @@ class PiCamApp:
 
 if __name__ == "__main__":
     root = ctk.CTk()
-    app = PiCamApp(root)
+    app = SonicSenseApp(root)
     root.mainloop()
