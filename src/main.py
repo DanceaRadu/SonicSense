@@ -126,11 +126,11 @@ class SonicSenseApp:
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            bf_map, bf_map_unnormalized, bf_color = self.background_map_calculator.get_latest_map()
+            bf_map, bf_map_unnormalized, bf_color, db_values = self.background_map_calculator.get_latest_map()
             if bf_map is not None and bf_color is not None:
                 frame = cv2.addWeighted(frame, 0.7, bf_color, 0.3, 0)
                 if(self.update_count % 3 == 0):
-                    self.update_max_value_label(bf_map_unnormalized)
+                    self.update_max_value_label(db_values)
 
             image = Image.fromarray(frame)
             ctk_image = ctk.CTkImage(light_image=image, size=(self.displayed_frame_width, self.displayed_frame_height))
@@ -161,7 +161,13 @@ class SonicSenseApp:
         map_h, map_w = bf_map_unnormalized.shape
         scaled_x = int(max_loc[0] * self.displayed_frame_width / map_w)
         scaled_y = int(max_loc[1] * self.displayed_frame_height / map_h)
-        self.max_value_label.configure(text=f"Max: {max_val:.2f} @ ({scaled_x}, {scaled_y})")
+
+        if max_val == -350.0:
+            max_val = 0.0
+        else:
+            max_val = max(0.0, max_val - 20.0)
+
+        self.max_value_label.configure(text=f"Max: {max_val:.2f} dB @ ({scaled_x}, {scaled_y})")
 
     def on_close(self):
         self.cleanup()

@@ -3,6 +3,7 @@ import time
 import numpy as np
 from matplotlib import cm
 import cv2
+import acoular as ac
 
 class BackgroundMapCalculator:
     def __init__(self, beamformer, user_settings, frame_width, frame_height, update_interval=0.5):
@@ -14,6 +15,7 @@ class BackgroundMapCalculator:
         self.frame_height = frame_height
         self.bf_map = None
         self.bf_map_unnormalized = None
+        self.db_values = None
         self.bf_color = None
         self.lock = threading.Lock()
         self.running = False
@@ -54,6 +56,7 @@ class BackgroundMapCalculator:
 
                 with self.lock:
                     self.bf_map = bf_map
+                    self.db_values = ac.L_p(unnormalized_bf_map)
                     self.bf_color = bf_color
                     self.bf_map_unnormalized = unnormalized_bf_map
             except Exception as e:
@@ -64,6 +67,6 @@ class BackgroundMapCalculator:
     def get_latest_map(self):
         with self.lock:
             if self.bf_map is not None and self.bf_color is not None:
-                return self.bf_map.copy(), self.bf_map_unnormalized.copy(), self.bf_color.copy()
+                return self.bf_map.copy(), self.bf_map_unnormalized.copy(), self.bf_color.copy(), self.db_values.copy()
             else:
-                return None, None, None
+                return None, None, None, None
