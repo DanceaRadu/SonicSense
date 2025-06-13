@@ -14,92 +14,56 @@ class SettingsWindow(ctk.CTkToplevel):
             "event_sound_threshold": settings.get("event_sound_threshold")
         }
         self.settings = settings
-        self.label_font = ("Arial", 22)
-        self.combobox_font = ("Arial", 24)
-        self.width = 300
-        self.height = 50
+        
+        self.option_buttons = {}
+        self.options_config = {
+            "frequency": ["250", "500", "1000", "2000", "4000"],
+            "sound_threshold": ["0.5", "1.0", "2.0", "5.0", "10.0"],
+            "event_sound_threshold": ["0.5", "1.0", "2.0", "5.0", "10.0"],
+            "bandwidth": ["0", "1", "2", "3"]
+        }
 
-        # Frequency
-        freq_label = ctk.CTkLabel(self, text="Frequency (Hz)", font=self.label_font)
-        freq_label.pack(pady=(20, 0))
-        combobox_frequency = ctk.CTkComboBox(
-            self, 
-            values=["250", "500", "1000", "2000", "4000"],
-            command=self.set_frequency,
-            height=50,
-            width=self.width,
-            font=self.combobox_font,
-            dropdown_font=self.combobox_font
+        self.build_settings_grid()
+
+        save_btn = ctk.CTkButton(
+            self, text="Save", font=("Arial", 20),
+            command=self.save, height=50, width=200
         )
-        combobox_frequency.set(self.changed_settings["frequency"])
-        combobox_frequency.pack(pady=10)
+        save_btn.grid(row=len(self.options_config)+1, column=0, columnspan=10, pady=30)
 
-        # Sound threshold
-        threshold_label = ctk.CTkLabel(self, text="Sound Threshold", font=self.label_font)
-        threshold_label.pack(pady=(20, 0))
-        combobox_threshold = ctk.CTkComboBox(
-            self, 
-            values=["0.5", "1.0", "2.0", "5.0", "10.0"],
-            command=self.set_threshold,
-            height=self.height,
-            width=self.width,
-            font=self.combobox_font,
-            dropdown_font=self.combobox_font
-        )
-        combobox_threshold.set(self.changed_settings["sound_threshold"])
-        combobox_threshold.pack(pady=10)
+    def build_settings_grid(self):
+        for row_idx, (setting_key, values) in enumerate(self.options_config.items()):
+            label = ctk.CTkLabel(self, text=setting_key.replace("_", " ").title(), font=("Arial", 20))
+            label.grid(row=row_idx, column=0, padx=10, pady=10, sticky="w")
 
-        # Event sound threshold
-        event_threshold_label = ctk.CTkLabel(self, text="Event Threshold", font=self.label_font)
-        event_threshold_label.pack(pady=(20, 0))
-        combobox_event_threshold = ctk.CTkComboBox(
-            self, 
-            values=["0.5", "1.0", "2.0", "5.0", "10.0"],
-            command=self.set_event_sound_threshold,
-            height=self.height,
-            width=self.width,
-            font=self.combobox_font,
-            dropdown_font=self.combobox_font
-        )
-        combobox_event_threshold.set(self.changed_settings["event_sound_threshold"])
-        combobox_event_threshold.pack(pady=10)
+            self.option_buttons[setting_key] = []
 
-        # Bandwith channels
-        bandwidth_label = ctk.CTkLabel(self, text="Bandwidth channels", font=self.label_font)
-        bandwidth_label.pack(pady=(20, 0))
-        combobox_bandwidth = ctk.CTkComboBox(
-            self, 
-            values=["0", "1", "2", "3"],
-            command=self.set_bandwidth,
-            height=self.height,
-            width=self.width,
-            font=self.combobox_font,
-            dropdown_font=self.combobox_font
-        )
-        combobox_bandwidth.set(self.changed_settings["bandwidth"])
-        combobox_bandwidth.pack(pady=10)
+            for col_idx, value in enumerate(values):
+                btn = ctk.CTkButton(
+                    self,
+                    text=value,
+                    width=80,
+                    height=40,
+                    font=("Arial", 18),
+                    command=lambda k=setting_key, v=value: self.select_option(k, v)
+                )
+                btn.grid(row=row_idx, column=col_idx + 1, padx=5, pady=5)
 
-        close_btn = ctk.CTkButton(
-            self, 
-            text="Save", 
-            command=self.save, 
-            font=("Arial", 24),
-            border_spacing=10,
-            width=self.width,
-        )
-        close_btn.pack(pady=40)
+                self.option_buttons[setting_key].append((value, btn))
 
-    def set_frequency(self, value):
-        self.changed_settings["frequency"] = int(value)
+                if str(self.changed_settings[setting_key]) == value:
+                    btn.configure(fg_color="dodgerblue", text_color="white")
+                else:
+                    btn.configure(fg_color="gray20", text_color="white")
 
-    def set_threshold(self, value):
-        self.changed_settings["sound_threshold"] = float(value)
+    def select_option(self, key, value):
+        self.changed_settings[key] = float(value) if "." in value else int(value)
 
-    def set_bandwidth(self, value):
-        self.changed_settings["bandwidth"] = int(value)
-
-    def set_event_sound_threshold(self, value):
-        self.changed_settings["event_sound_threshold"] = float(value)
+        for val, btn in self.option_buttons[key]:
+            if val == value:
+                btn.configure(fg_color="dodgerblue")
+            else:
+                btn.configure(fg_color="gray20")
 
     def save(self):
         self.settings.update(self.changed_settings)
