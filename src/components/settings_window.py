@@ -23,24 +23,27 @@ class SettingsWindow(ctk.CTkToplevel):
             "bandwidth": ["0", "1", "2", "3"]
         }
 
-        self.build_settings_grid()
+        outer_frame = ctk.CTkFrame(self, fg_color="transparent")
+        outer_frame.pack(expand=True)
+
+        self.build_settings_grid(outer_frame)
 
         save_btn = ctk.CTkButton(
-            self, text="Save", font=("Arial", 20),
+            outer_frame, text="Save", font=("Arial", 20),
             command=self.save, height=50, width=200
         )
         save_btn.grid(row=len(self.options_config)+1, column=0, columnspan=10, pady=30)
 
-    def build_settings_grid(self):
+    def build_settings_grid(self, container):
         for row_idx, (setting_key, values) in enumerate(self.options_config.items()):
-            label = ctk.CTkLabel(self, text=setting_key.replace("_", " ").title(), font=("Arial", 20))
-            label.grid(row=row_idx, column=0, padx=10, pady=10, sticky="w")
+            label = ctk.CTkLabel(container, text=setting_key.replace("_", " ").title(), font=("Arial", 20))
+            label.grid(row=row_idx, column=0, padx=10, pady=10, sticky="e")
 
             self.option_buttons[setting_key] = []
 
             for col_idx, value in enumerate(values):
                 btn = ctk.CTkButton(
-                    self,
+                    container,
                     text=value,
                     width=80,
                     height=40,
@@ -48,7 +51,6 @@ class SettingsWindow(ctk.CTkToplevel):
                     command=lambda k=setting_key, v=value: self.select_option(k, v)
                 )
                 btn.grid(row=row_idx, column=col_idx + 1, padx=5, pady=5)
-
                 self.option_buttons[setting_key].append((value, btn))
 
                 if str(self.changed_settings[setting_key]) == value:
