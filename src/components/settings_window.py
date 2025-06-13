@@ -29,10 +29,13 @@ class SettingsWindow(ctk.CTkToplevel):
         self.build_settings_grid(outer_frame)
 
         save_btn = ctk.CTkButton(
-            outer_frame, text="Save", font=("Arial", 22),
+            self, text="Save", font=("Arial", 22),
             command=self.save, height=60, width=220
         )
-        save_btn.grid(row=len(self.options_config)+1, column=0, columnspan=10, pady=30)
+        save_btn.place(relx=1.0, rely=1.0, x=-30, y=-30, anchor="se")
+
+        settings_label = ctk.CTkLabel(self, text="SETTINGS", font=("Arial", 30, "bold"))
+        settings_label.place(relx=0.5, rely=0.05, anchor="n")
 
     def build_settings_grid(self, container):
         for row_idx, (setting_key, values) in enumerate(self.options_config.items()):
