@@ -29,15 +29,15 @@ class SettingsWindow(ctk.CTkToplevel):
         self.build_settings_grid(outer_frame)
 
         save_btn = ctk.CTkButton(
-            outer_frame, text="Save", font=("Arial", 20),
-            command=self.save, height=50, width=200
+            outer_frame, text="Save", font=("Arial", 22),
+            command=self.save, height=60, width=220
         )
         save_btn.grid(row=len(self.options_config)+1, column=0, columnspan=10, pady=30)
 
     def build_settings_grid(self, container):
         for row_idx, (setting_key, values) in enumerate(self.options_config.items()):
-            label = ctk.CTkLabel(container, text=setting_key.replace("_", " ").title(), font=("Arial", 20))
-            label.grid(row=row_idx, column=0, padx=10, pady=10, sticky="e")
+            label = ctk.CTkLabel(container, text=setting_key.replace("_", " ").title(), font=("Arial", 22))
+            label.grid(row=row_idx, column=0, padx=15, pady=30, sticky="e")
 
             self.option_buttons[setting_key] = []
 
@@ -45,9 +45,9 @@ class SettingsWindow(ctk.CTkToplevel):
                 btn = ctk.CTkButton(
                     container,
                     text=value,
-                    width=80,
-                    height=40,
-                    font=("Arial", 18),
+                    width=120,
+                    height=60,
+                    font=("Arial", 20),
                     command=lambda k=setting_key, v=value: self.select_option(k, v)
                 )
                 btn.grid(row=row_idx, column=col_idx + 1, padx=5, pady=5)
