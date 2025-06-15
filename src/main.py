@@ -51,6 +51,9 @@ class SonicSenseApp:
         self.fps_label.place(relx=0.96, rely=0.06, anchor="ne")
         self.fps_duration = 0
 
+        self.frequency_label = ctk.CTkLabel(self.root, text=f"Freq: {int(self.settings.get('frequency'))} Hz", font=ctk.CTkFont(size=20))
+        self.frequency_label.place(relx=0.01, rely=0.02, anchor="nw")
+
         pipeline_cmd = (
             f"libcamera-vid -t 0 --width 4608 --height 2592 --framerate {self.framerate} "
             f"--codec yuv420 --nopreview -o - | "
@@ -147,6 +150,7 @@ class SonicSenseApp:
                 fps = 10 / self.fps_duration
                 self.fps_duration = 0
                 self.fps_label.configure(text=f"FPS: {fps:.2f}")
+                self.frequency_label.configure(text=f"Freq: {int(self.settings.get('frequency'))} Hz")
             
         self.update_count += 1
         self.root.after(60, self.update_frame)
